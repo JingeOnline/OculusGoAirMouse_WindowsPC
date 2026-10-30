@@ -1,0 +1,19 @@
+{
+  "DeviceName": "OMVR-V190",
+  "SensitivityX": 1.75,
+  "SensitivityY": 1.25,
+  "DeadZone": 65,
+  "XAxis": 0,
+  "YAxis": 2,
+  "XInvert": true,
+  "YInvert": false,
+  "Smoothing": 0.8,
+  "MaxMove": 100,
+  "CalibrationSamples": 250,
+  "ButtonTimeout": 3,
+  "ScrollUnitsPerNotch": 30,
+  "ScrollVerticalInvert": false,
+  "ScrollHorizontalInvert": true,
+  "ScanTimeoutSeconds": 15,
+  "ConnectTimeoutSeconds": 30
+}
