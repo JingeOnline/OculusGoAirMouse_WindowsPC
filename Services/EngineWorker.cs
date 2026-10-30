@@ -1,6 +1,7 @@
+using OculusGoAirMouse.Models;
 using System.Collections.Concurrent;
 
-namespace OculusGoAirMouse;
+namespace OculusGoAirMouse.Services;
 
 public sealed record EngineSnapshot(bool Enabled, bool Calibrated, string Status);
 

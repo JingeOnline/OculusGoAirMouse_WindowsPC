@@ -1,4 +1,5 @@
-using OculusGoAirMouse;
+using OculusGoAirMouse.Models;
+using OculusGoAirMouse.Services;
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 
@@ -43,6 +44,7 @@ Check(Marshal.SizeOf(input) == (IntPtr.Size == 8 ? 40 : 28), "Win32 INPUT layout
 checks += await WorkerChecks.RunAsync();
 checks += CaptionChecks.Run();
 checks += await ConnectionChecks.RunAsync();
+checks += await ViewModelChecks.RunAsync();
 Console.WriteLine($"PASS: {checks} migration, input-thread independence, watchdog, calibration, scrolling, button, configuration and native-layout checks.");
 
 sealed class FakeMouse : IMouseOutput

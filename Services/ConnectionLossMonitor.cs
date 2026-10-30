@@ -1,4 +1,4 @@
-namespace OculusGoAirMouse;
+namespace OculusGoAirMouse.Services;
 
 // A transient Windows status notification must not immediately destroy the GATT
 // session that is responsible for maintaining/re-establishing the connection.

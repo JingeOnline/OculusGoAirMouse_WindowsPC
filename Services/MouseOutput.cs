@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 
-namespace OculusGoAirMouse;
+namespace OculusGoAirMouse.Services;
 
 public interface IMouseOutput
 {

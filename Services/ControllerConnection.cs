@@ -1,9 +1,10 @@
+using OculusGoAirMouse.Models;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Advertisement;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Storage.Streams;
 
-namespace OculusGoAirMouse;
+namespace OculusGoAirMouse.Services;
 
 public sealed class ControllerConnection
 {

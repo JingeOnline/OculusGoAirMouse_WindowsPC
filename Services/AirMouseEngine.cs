@@ -1,7 +1,8 @@
+using OculusGoAirMouse.Models;
 using System.Buffers.Binary;
 using System.Diagnostics;
 
-namespace OculusGoAirMouse;
+namespace OculusGoAirMouse.Services;
 
 public sealed class AirMouseEngine(IMouseOutput output)
 {

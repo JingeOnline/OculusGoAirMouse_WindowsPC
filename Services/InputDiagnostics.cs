@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Channels;
 
-namespace OculusGoAirMouse;
+namespace OculusGoAirMouse.Services;
 
 // Bounded, asynchronous diagnostic output. The input thread never waits for disk
 // or the UI; no packet contents, addresses or desktop activity are recorded.

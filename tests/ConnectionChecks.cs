@@ -1,4 +1,5 @@
-using OculusGoAirMouse;
+using OculusGoAirMouse.Models;
+using OculusGoAirMouse.Services;
 
 static class ConnectionChecks
 {
