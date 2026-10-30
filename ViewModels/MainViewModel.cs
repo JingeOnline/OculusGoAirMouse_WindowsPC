@@ -14,9 +14,10 @@ public partial class MainViewModel : ObservableObject
     private Settings current;
     private IDisposable? ticker;
     private bool initialized;
+    private int stopGeneration;
     private Task? shutdown;
     private readonly Queue<string> logLines = new();
-    public string Title => "Oculus Go Air Mouse · 0.3.7";
+    public string Title => "Oculus Go Air Mouse · 0.3.8";
     public SettingsViewModel Settings { get; }
     [ObservableProperty] private string connectionStatus = "未连接";
     [ObservableProperty] private string engineStatus = "连接后可点击重新校准或长按 Oculus 1 秒。";
@@ -39,7 +40,7 @@ public partial class MainViewModel : ObservableObject
         if (loadError != null) Settings.Message = loadError;
         runtime.Progress += OnProgress; runtime.Faulted += OnFault;
         runtime.Disconnected += OnDisconnected; runtime.LinkChanged += OnLinkChanged;
-        Log("版本 0.3.7：允许未校准时直接开启鼠标。");
+        Log("版本 0.3.8：支持启动时自动连接并开启鼠标。");
     }
     partial void OnIsConnectingChanged(bool value) => RefreshCommands();
     partial void OnIsConnectedChanged(bool value) => RefreshCommands();
@@ -64,6 +65,7 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex) { Log(ex.Message); }
         if (IsClosing) return;
         ticker = ui.Every(TimeSpan.FromMilliseconds(100), Pulse); Pulse();
+        if (current.AutoConnectOnStartup && CanConnect()) await ConnectCoreAsync(autoEnableMouse: true);
     }
     private void Pulse()
     {
@@ -105,10 +107,20 @@ public partial class MainViewModel : ObservableObject
         Log("控制器标题栏兼容处理：" + action);
     });
     [RelayCommand(CanExecute = nameof(CanConnect))]
-    private async Task ConnectAsync()
+    private Task ConnectAsync() => ConnectCoreAsync();
+    private async Task ConnectCoreAsync(bool autoEnableMouse = false)
     {
         IsConnecting = true; elapsed.Restart();
-        try { await runtime.ConnectAsync(current.Copy()); }
+        int generation = stopGeneration;
+        try
+        {
+            await runtime.ConnectAsync(current.Copy());
+            if (autoEnableMouse && current.AutoConnectOnStartup && !IsClosing && generation == stopGeneration && runtime.Connected && !runtime.Snapshot.Enabled)
+            {
+                await runtime.ToggleAsync();
+                Log("启动自动连接成功，已开启鼠标。");
+            }
+        }
         catch (TimeoutException) { ConnectionStatus = "未发现控制器，请唤醒后重试。"; Log(ConnectionStatus); }
         catch (OperationCanceledException) { ConnectionStatus = "连接已取消或超时，请唤醒控制器后重试。"; Log(ConnectionStatus); }
         catch (Exception ex) { ConnectionStatus = "连接失败：" + ex.Message; Log(ConnectionStatus); }
@@ -116,6 +128,7 @@ public partial class MainViewModel : ObservableObject
     }
     private async Task StopAsync(string reason)
     {
+        stopGeneration++;
         try { await runtime.DisconnectAsync(reason); }
         catch (Exception ex) { Log("释放连接或按键失败：" + ex.Message); }
         IsRecovering = false; Pulse();
@@ -141,7 +154,7 @@ public partial class MainViewModel : ObservableObject
     public Task ShutdownAsync() => shutdown ??= ShutdownCoreAsync();
     private async Task ShutdownCoreAsync()
     {
-        IsClosing = true; Settings.IsAvailable = false;
+        IsClosing = true; stopGeneration++; Settings.IsAvailable = false;
         elapsed.Stop();
         ticker?.Dispose(); ticker = null;
         runtime.Progress -= OnProgress; runtime.Faulted -= OnFault;

@@ -11,7 +11,7 @@ static class ViewModelChecks
         var runtime = new FakeRuntime(); var store = new FakeStore(); var ui = new FakeUi();
         var vm = new MainViewModel(runtime, store, ui);
         Check(vm.ConnectCommand.CanExecute(null) && !vm.DisconnectCommand.CanExecute(null) && !vm.ToggleMouseCommand.CanExecute(null), "Initial command availability");
-        Check(vm.Settings.Fields.Count == 19 && vm.Settings.Fields[1].TextValue == 1.75.ToString(), "Bound settings migration");
+        Check(vm.Settings.Fields.Count == 20 && vm.Settings.Fields[1].TextValue == 1.75.ToString(), "Bound settings migration");
         Check(!vm.Settings.Fields[18].BooleanValue, "Auto calibration checkbox must default off");
         await vm.InitializeAsync();
         Check(runtime.Applied!.DeadZone == 65 && runtime.ApplyCount == 1, "Initialization applies saved settings");
@@ -81,11 +81,37 @@ static class ViewModelChecks
         var badVm = new MainViewModel(new FakeRuntime(), badStore, new FakeUi());
         Check(badStore.Saves == 0 && badVm.Settings.Message.Contains("未覆盖"), "Corrupt configuration overwritten during construction");
         await badVm.ShutdownAsync();
+        Check(new Settings().AutoConnectOnStartup, "Startup connection must default on");
+        foreach (bool enabled in new[] { true, false })
+        {
+            var startupRuntime = new FakeRuntime();
+            var startupStore = new FakeStore { Value = new Settings { AutoConnectOnStartup = enabled } };
+            var startupVm = new MainViewModel(startupRuntime, startupStore, new FakeUi());
+            await startupVm.InitializeAsync(); await startupVm.InitializeAsync();
+            Check(startupRuntime.Connects == (enabled ? 1 : 0) && startupRuntime.Toggles == (enabled ? 1 : 0), "Startup option did not control exactly one connect/enable sequence");
+            Check(startupVm.IsMouseEnabled == enabled && startupRuntime.Snapshot.Enabled == enabled, "Startup mouse state not reflected in UI");
+            await startupVm.ShutdownAsync();
+        }
+        var failedRuntime = new FakeRuntime { ThrowOnConnect = true };
+        var failedVm = new MainViewModel(failedRuntime, new FakeStore { Value = new Settings() }, new FakeUi());
+        await failedVm.InitializeAsync();
+        Check(failedRuntime.Toggles == 0 && failedVm.ConnectCommand.CanExecute(null), "Startup failure enabled mouse or prevented manual retry");
+        await failedVm.ShutdownAsync();
+        foreach (bool closing in new[] { true, false })
+        {
+            var gatedRuntime = new FakeRuntime { ConnectGate = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+            var gatedVm = new MainViewModel(gatedRuntime, new FakeStore { Value = new Settings() }, new FakeUi());
+            Task startup = gatedVm.InitializeAsync();
+            if (closing) await gatedVm.ShutdownAsync(); else await gatedVm.DisconnectCommand.ExecuteAsync(null);
+            gatedRuntime.ConnectGate.SetResult(); await startup;
+            Check(gatedRuntime.Toggles == 0, "Cancelled/closing startup enabled mouse after delayed connect");
+            await gatedVm.ShutdownAsync();
+        }
         return count;
     }
     private sealed class FakeStore : ISettingsStore
     {
-        public Settings Value = new(); public int Saves; public bool FailSave, FailLoad;
+        public Settings Value = new() { AutoConnectOnStartup = false }; public int Saves; public bool FailSave, FailLoad;
         public string FilePath => "test-settings.json";
         public bool Exists => true;
         public Settings Load() => FailLoad ? throw new Exception("corrupt") : Value.Copy();
@@ -106,7 +132,8 @@ static class ViewModelChecks
         public EngineSnapshot Snapshot { get; set; } = new(false, false, "校准中");
         public bool Connected { get; set; }
         public Settings? Applied, LastConnectionSettings;
-        public int ApplyCount, Disconnects, Disposals;
+        public int ApplyCount, Disconnects, Disposals, Connects, Toggles;
+        public TaskCompletionSource? ConnectGate;
         public bool ThrowOnConnect;
         public event Action<string>? Progress;
         public event Action<Exception>? Faulted;
@@ -117,9 +144,9 @@ static class ViewModelChecks
         public void EmitDisconnected() => Disconnected?.Invoke();
         public void EmitFault(Exception error) => Faulted?.Invoke(error);
         public Task ApplyAsync(Settings settings) { Applied = settings.Copy(); ApplyCount++; Snapshot = new(false, false, "校准中"); return Task.CompletedTask; }
-        public Task ConnectAsync(Settings settings) { if (ThrowOnConnect) throw new Exception("测试错误"); LastConnectionSettings = settings.Copy(); Connected = true; return Task.CompletedTask; }
+        public async Task ConnectAsync(Settings settings) { Connects++; if (ThrowOnConnect) throw new Exception("测试错误"); LastConnectionSettings = settings.Copy(); if (ConnectGate != null) await ConnectGate.Task; Connected = true; }
         public Task DisconnectAsync(string reason) { Connected = false; Disconnects++; Snapshot = new(false, false, "已停止"); return Task.CompletedTask; }
-        public Task ToggleAsync() { Snapshot = Snapshot with { Enabled = !Snapshot.Enabled }; return Task.CompletedTask; }
+        public Task ToggleAsync() { Toggles++; Snapshot = Snapshot with { Enabled = !Snapshot.Enabled }; return Task.CompletedTask; }
         public Task CalibrateAsync() { Snapshot = new(Snapshot.Enabled, false, "校准中"); return Task.CompletedTask; }
         public ValueTask DisposeAsync() { Connected = false; Disposals++; Faulted = null; return ValueTask.CompletedTask; }
     }

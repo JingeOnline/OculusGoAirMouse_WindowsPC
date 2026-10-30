@@ -17,5 +17,6 @@
   "ScanTimeoutSeconds": 15,
   "ConnectTimeoutSeconds": 30,
   "CalibrationDurationSeconds": 1.25,
-  "AutoCalibrateOnConnect": false
+  "AutoCalibrateOnConnect": false,
+  "AutoConnectOnStartup": true
 }
