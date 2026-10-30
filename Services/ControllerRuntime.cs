@@ -9,7 +9,7 @@ public sealed class ControllerRuntime : IControllerRuntime
     private readonly object lifecycle = new();
     private Task? activeConnection, disconnection, disposal;
     private CancellationTokenSource? connectionCancellation;
-    private volatile bool disposing;
+    private volatile bool disposing, acceptNativeFrames;
     private Settings currentSettings = new();
     private CancellationTokenSource? retryCancellation;
     private Task? retryTask;
@@ -35,7 +35,7 @@ public sealed class ControllerRuntime : IControllerRuntime
         connection.LinkRecovered += OnRecovered;
         engine.Faulted += OnFaulted;
     }
-    private void OnFrame(byte[] data, bool gyro) { if (!disposing) engine.PostFrame(data, gyro); }
+    private void OnFrame(byte[] data, bool gyro) { if (!disposing && acceptNativeFrames) engine.PostFrame(data, gyro); }
     private void OnProgress(string text) { if (!disposing) Progress?.Invoke(text); }
     private void OnDisconnected()
     {
@@ -153,7 +153,8 @@ public sealed class ControllerRuntime : IControllerRuntime
     {
         try
         {
-            await engine.StartSessionAsync(restoreMouse, settings.AutoCalibrateOnConnect);
+            acceptNativeFrames = false;
+            await engine.StartSessionAsync(false, settings.AutoCalibrateOnConnect);
             cancellation.Token.ThrowIfCancellationRequested();
             ThrowIfDisposing();
             for (int attempt = 1; ; attempt++)
@@ -164,6 +165,8 @@ public sealed class ControllerRuntime : IControllerRuntime
                     OnProgress($"连接尝试 {attempt}/{maxAttempts}");
                     await connection.ConnectAsync(settings, cancellation.Token);
                     cancellation.Token.ThrowIfCancellationRequested();
+                    await engine.RestoreMouseAsync(restoreMouse);
+                    acceptNativeFrames = true;
                     break;
                 }
                 catch (Exception) when (cancellation.IsCancellationRequested) { throw new OperationCanceledException(cancellation.Token); }
@@ -178,7 +181,7 @@ public sealed class ControllerRuntime : IControllerRuntime
                 }
             }
         }
-        catch { await engine.StopSessionAsync(); throw; }
+        catch { acceptNativeFrames = false; await engine.StopSessionAsync(); throw; }
         finally
         {
             lock (lifecycle) { if (ReferenceEquals(connectionCancellation, cancellation)) connectionCancellation = null; }
@@ -238,6 +241,7 @@ public sealed class ControllerRuntime : IControllerRuntime
     }
     private async Task DisconnectCoreAsync(string reason)
     {
+        acceptNativeFrames = false;
         InputDiagnostics.Write("app stop reason=" + reason);
         var release = engine.StopSessionAsync();
         try

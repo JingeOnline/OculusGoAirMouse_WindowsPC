@@ -197,6 +197,21 @@ static class LifecycleChecks
         await runtime.DisposeAsync();
         Check(!runtime.InputThreadAlive && connection.Subscribers == 0 && connection.Connects == 1, "Exit during wake delay leaked a retry or input thread");
 
+        connection = new FakeConnection(); mouse = new RecordingMouse(); runtime = new(mouse, connection);
+        await runtime.ConnectAsync(new()); await runtime.ToggleAsync(); await runtime.SuspendAsync();
+        bool outputEarly = false;
+        var subscribedPacket = new byte[20]; subscribedPacket[19] = 1;
+        connection.DuringConnect = () =>
+        {
+            outputEarly = runtime.Snapshot.Enabled;
+            connection.Emit(subscribedPacket, false);
+        };
+        int beforeReconnect = mouse.Calls;
+        await runtime.ResumeAsync(); await WaitUntil(() => runtime.Connected && runtime.Snapshot.Enabled);
+        await Task.Delay(50);
+        Check(!outputEarly && mouse.Calls == beforeReconnect, "Reconnection emitted input before subscription completed");
+        await runtime.DisposeAsync();
+
         string path = Path.Combine(AppContext.BaseDirectory, "scratch", "diagnostic-close.log");
         var writer = new DiagnosticWriter(path);
         writer.Write("first"); writer.Write("last");
@@ -230,6 +245,7 @@ static class LifecycleChecks
         public bool Connected { get; private set; }
         public bool BlockConnect, FailNotifications, FailDisconnect;
         public int NotificationStops, Disconnects, Connects, FailConnects;
+        public Action? DuringConnect;
         public void Lose() { Connected = false; LinkInterrupted?.Invoke(); Disconnected?.Invoke(); }
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource? NotificationGate;
@@ -246,7 +262,7 @@ static class LifecycleChecks
             Started.TrySetResult();
             if (FailConnects > 0) { FailConnects--; throw new TimeoutException("simulated scan failure"); }
             if (BlockConnect) await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested(); Connected = true;
+            cancellationToken.ThrowIfCancellationRequested(); DuringConnect?.Invoke(); Connected = true;
         }
         public void Emit(byte[] data, bool gyro) => Frame?.Invoke(data, gyro);
         public void CancelPending() { }

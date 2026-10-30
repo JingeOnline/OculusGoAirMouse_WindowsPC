@@ -11,6 +11,8 @@ public sealed class EngineWorker : IAsyncDisposable
 {
     private readonly BlockingCollection<Action> queue = new();
     private readonly AirMouseEngine engine;
+    private readonly IMouseOutput output;
+    private bool inputPaused;
     private readonly Thread workerThread;
     public bool IsRunning => workerThread.IsAlive;
     private readonly TaskCompletionSource stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -23,6 +25,7 @@ public sealed class EngineWorker : IAsyncDisposable
 
     public EngineWorker(IMouseOutput output)
     {
+        this.output = output;
         engine = new(output);
         workerThread = new Thread(Run) { IsBackground = true, Name = "Oculus mouse input" };
         workerThread.Start();
@@ -46,6 +49,7 @@ public sealed class EngineWorker : IAsyncDisposable
             {
                 Interlocked.Decrement(ref queuedFrames);
                 if (current != Volatile.Read(ref generation)) return;
+                if (!UpdateInputAvailability()) return;
                 InputDiagnostics.Frame(data, gyro, true);
                 if (gyro) engine.Gyro(data); else engine.Sensor(data);
             });
@@ -77,9 +81,31 @@ public sealed class EngineWorker : IAsyncDisposable
     public Task CalibrateAsync() => Command(engine.Calibrate, invalidate: true);
     public Task StartSessionAsync(bool restoreMouse = false, bool autoCalibrate = false) => Command(() => engine.StartSession(restoreMouse, autoCalibrate), invalidate: true, allowFrames: true);
     public Task StopSessionAsync() => Command(() => { engine.Disable(); engine.CancelCalibration(); }, invalidate: true, allowFrames: false);
+    public Task RestoreMouseAsync(bool enabled) => Command(() => engine.RestoreEnabled(enabled));
     public Task ToggleAsync() => Command(() => { if (engine.Enabled) engine.Disable(); else engine.Enable(); });
 
-    private void Publish() => Volatile.Write(ref snapshot, new EngineSnapshot(engine.Enabled, engine.Calibrated, engine.Status, engine.CalibrationProgress, engine.IsCalibrating));
+    private void Publish() => Volatile.Write(ref snapshot, new EngineSnapshot(engine.Enabled, engine.Calibrated, inputPaused ? "鼠标输入暂时暂停，等待解锁桌面后自动恢复。" : engine.Status, engine.CalibrationProgress, engine.IsCalibrating));
+    private void PauseForDesktop()
+    {
+        if (!inputPaused)
+        {
+            inputPaused = true;
+            lock (lifecycle) generation++;
+            InputDiagnostics.Write("input desktop unavailable; preserving connection and mouse switch");
+        }
+        try { engine.PauseInput(); } catch (InputDesktopUnavailableException) { }
+        Publish();
+    }
+    private bool UpdateInputAvailability()
+    {
+        if (!output.IsInputAvailable) { PauseForDesktop(); return false; }
+        if (inputPaused)
+        {
+            output.FlushPendingReleases(); engine.PauseInput(); inputPaused = false;
+            InputDiagnostics.Write("input desktop available; mouse output resumed");
+        }
+        return true;
+    }
     private void Fail(Exception error)
     {
         InputDiagnostics.Capture("input failure=" + error.Message);
@@ -100,9 +126,10 @@ public sealed class EngineWorker : IAsyncDisposable
                 {
                     if (Interlocked.Exchange(ref overflow, 0) != 0) Fail(new InvalidOperationException("控制器数据积压，已停止鼠标控制。请重新连接。"));
                     if (queue.TryTake(out var action, 50)) action();
-                    engine.CheckTimeout();
+                    if (UpdateInputAvailability()) engine.CheckTimeout();
                     Publish();
                 }
+                catch (InputDesktopUnavailableException) { PauseForDesktop(); }
                 catch (Exception ex) { Fail(ex); }
             }
         }

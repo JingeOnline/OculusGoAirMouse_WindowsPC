@@ -13,7 +13,7 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
     private double calibrationStarted, lastCalibrationSample;
     private double lastTime, lastSensor, remainingX, remainingY, scrollX, scrollY;
     private int? touchX, touchY;
-    private bool left, right, oculus;
+    private bool left, right, oculus, waitForButtonRelease;
     private double oculusPressedAt, pointerLockedUntil;
     private bool oculusLongPressHandled;
     public bool Enabled { get; private set; }
@@ -56,6 +56,11 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
         if (milliseconds == 0) return;
         pointerLockedUntil = Math.Max(pointerLockedUntil, now + milliseconds / 1000.0);
         remainingX = remainingY = 0; Array.Clear(filtered); lastTime = now;
+    }
+    internal void PauseInput()
+    {
+        Release(); ResetMotion(); ResetOculusGesture(); Array.Clear(filtered); lastTime = Now;
+        waitForButtonRelease = true;
     }
     private void ResetScroll() { touchX = touchY = null; scrollX = scrollY = 0; }
     public void Release()
@@ -101,6 +106,11 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
         if (lastSensor > 0 && now - lastSensor > settings.ButtonTimeout) { Release(); ResetOculusGesture(); }
         lastSensor = now;
         byte buttons = data[19];
+        if (waitForButtonRelease)
+        {
+            if ((buttons & 7) != 0) return;
+            waitForButtonRelease = false;
+        }
         HandleOculus((buttons & 1) != 0, now);
         if (!Enabled || IsCalibrating) { Release(); return; }
         if ((buttons & 16) == 0) ResetScroll();

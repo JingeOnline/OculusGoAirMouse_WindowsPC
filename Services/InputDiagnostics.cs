@@ -13,7 +13,7 @@ public static class InputDiagnostics
     private static int stopping;
     private static long received, processed, lastReceived, lastProcessed, lastUi, captureUntil;
     private static int receivedButtons = -1, processedButtons = -1;
-    public static string FilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OculusGoAirMouse", "input-diagnostics.log");
+    public static string FilePath => Path.Combine(AppContext.GetData("OculusGoAirMouse.DiagnosticsDirectory") as string ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OculusGoAirMouse"), "input-diagnostics.log");
     public static bool IsStopped => shutdown?.IsCompletedSuccessfully == true;
     private static double Age(long time) => time == 0 ? -1 : Stopwatch.GetElapsedTime(time).TotalMilliseconds;
     private static async Task HealthLoopAsync()

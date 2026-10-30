@@ -3,6 +3,7 @@ using OculusGoAirMouse.Services;
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 
+AppContext.SetData("OculusGoAirMouse.DiagnosticsDirectory", Path.Combine(AppContext.BaseDirectory, "scratch"));
 int checks = 0;
 void Check(bool result, string message) { if (!result) throw new Exception(message); checks++; }
 var output = new FakeMouse();
@@ -49,6 +50,7 @@ checks += await ConnectionChecks.RunAsync();
 checks += await ViewModelChecks.RunAsync();
 checks += CalibrationChecks.Run();
 checks += ClickLockChecks.Run();
+checks += await DesktopChecks.RunAsync();
 checks += await LifecycleChecks.RunAsync();
 Console.WriteLine($"PASS: {checks} migration, input-thread independence, watchdog, calibration, scrolling, button, configuration and native-layout checks.");
 

@@ -1,17 +1,55 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace OculusGoAirMouse.Services;
 
 public interface IMouseOutput
 {
+    bool IsInputAvailable => true;
+    void FlushPendingReleases() { }
     void Send(uint flags, int dx = 0, int dy = 0, int data = 0);
     void Center();
     void CancelPendingClick() { }
 }
 
+public sealed class InputDesktopUnavailableException : Exception
+{
+    public InputDesktopUnavailableException() : base("输入桌面暂不可用，等待解锁后恢复。") { }
+}
+
 public sealed class MouseOutput : IMouseOutput
 {
+    private uint pendingReleases;
+    public bool IsInputAvailable
+    {
+        get
+        {
+            nint input = OpenInputDesktop(0, false, 1); // DESKTOP_READOBJECTS
+            if (input == 0) return false;
+            try
+            {
+                var inputName = new StringBuilder(256); var ownName = new StringBuilder(256);
+                return GetUserObjectInformation(input, 2, inputName, 512, out _)
+                    && GetUserObjectInformation(GetThreadDesktop(GetCurrentThreadId()), 2, ownName, 512, out _)
+                    && string.Equals(inputName.ToString(), ownName.ToString(), StringComparison.OrdinalIgnoreCase);
+            }
+            finally { CloseDesktop(input); }
+        }
+    }
+    public void FlushPendingReleases()
+    {
+        if (pendingReleases == 0) return;
+        uint flags = pendingReleases;
+        pendingReleases = 0;
+        try { Send(flags); }
+        catch { pendingReleases |= flags; throw; }
+    }
+    [DllImport("user32.dll")] private static extern nint OpenInputDesktop(uint flags, bool inherit, uint access);
+    [DllImport("user32.dll")] private static extern bool CloseDesktop(nint desktop);
+    [DllImport("user32.dll")] private static extern nint GetThreadDesktop(uint threadId);
+    [DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll", EntryPoint="GetUserObjectInformationW", CharSet=CharSet.Unicode)] private static extern bool GetUserObjectInformation(nint handle, int index, StringBuilder value, uint size, out uint needed);
     private readonly NativeCaptionWindow captionWindow = new();
     private readonly CaptionClickRouter captionClicks;
     public event Action<uint>? CaptionCommandPosted;
@@ -32,12 +70,30 @@ public sealed class MouseOutput : IMouseOutput
     [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
     public void Send(uint flags, int dx = 0, int dy = 0, int data = 0)
     {
+        if (!IsInputAvailable)
+        {
+            pendingReleases |= flags & (4u | 16u);
+            if ((flags & ~(4u | 16u)) == 0) return;
+            throw new InputDesktopUnavailableException();
+        }
         if (captionClicks.TryHandle(flags)) return;
         var input = new Input { Mouse = new MouseInput { X = dx, Y = dy, Flags = flags, Data = unchecked((uint)data) } };
-        if (SendInput(1, [input], Marshal.SizeOf<Input>()) != 1) throw new Win32Exception(Marshal.GetLastWin32Error(), "无法发送鼠标输入，请检查目标窗口权限。");
+        if (SendInput(1, [input], Marshal.SizeOf<Input>()) != 1)
+        {
+            int error = Marshal.GetLastWin32Error();
+            pendingReleases |= flags & (4u | 16u);
+            if (!IsInputAvailable) throw new InputDesktopUnavailableException();
+            throw new Win32Exception(error, "无法发送鼠标输入，请检查目标窗口权限。");
+        }
     }
     public void Center()
     {
-        if (!SetCursorPos(GetSystemMetrics(0) / 2, GetSystemMetrics(1) / 2)) throw new Win32Exception(Marshal.GetLastWin32Error());
+        if (!IsInputAvailable) throw new InputDesktopUnavailableException();
+        if (!SetCursorPos(GetSystemMetrics(0) / 2, GetSystemMetrics(1) / 2))
+        {
+            int error = Marshal.GetLastWin32Error();
+            if (!IsInputAvailable) throw new InputDesktopUnavailableException();
+            throw new Win32Exception(error);
+        }
     }
 }
