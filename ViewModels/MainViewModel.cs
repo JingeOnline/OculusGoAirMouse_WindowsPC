@@ -16,7 +16,7 @@ public partial class MainViewModel : ObservableObject
     private bool initialized;
     private Task? shutdown;
     private readonly Queue<string> logLines = new();
-    public string Title => "Oculus Go Air Mouse · 0.3.1";
+    public string Title => "Oculus Go Air Mouse · 0.3.2";
     public SettingsViewModel Settings { get; }
     [ObservableProperty] private string connectionStatus = "未连接";
     [ObservableProperty] private string engineStatus = "连接后请静置控制器进行校准。";
@@ -25,6 +25,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool isConnecting;
     [ObservableProperty] private bool isConnected;
     [ObservableProperty] private bool isCalibrated;
+    [ObservableProperty] private bool isMouseEnabled;
     [ObservableProperty] private bool isRecovering;
     [ObservableProperty] private bool isClosing;
 
@@ -38,16 +39,17 @@ public partial class MainViewModel : ObservableObject
         if (loadError != null) Settings.Message = loadError;
         runtime.Progress += OnProgress; runtime.Faulted += OnFault;
         runtime.Disconnected += OnDisconnected; runtime.LinkChanged += OnLinkChanged;
-        Log("版本 0.3.1：已完善资源退出清理。");
+        Log("版本 0.3.2：重新校准保留鼠标开关；Oculus 长按 1 秒重新校准。");
     }
     partial void OnIsConnectingChanged(bool value) => RefreshCommands();
     partial void OnIsConnectedChanged(bool value) => RefreshCommands();
     partial void OnIsCalibratedChanged(bool value) => RefreshCommands();
+    partial void OnIsMouseEnabledChanged(bool value) => RefreshCommands();
     partial void OnIsRecoveringChanged(bool value) => RefreshCommands();
     partial void OnIsClosingChanged(bool value) => RefreshCommands();
     private bool CanConnect() => !IsClosing && !IsConnecting && !IsConnected && !IsRecovering;
     private bool CanDisconnect() => !IsClosing && (IsConnecting || IsConnected || IsRecovering);
-    private bool CanToggle() => !IsClosing && !IsConnecting && IsConnected && IsCalibrated;
+    private bool CanToggle() => !IsClosing && !IsConnecting && IsConnected && (IsCalibrated || IsMouseEnabled);
     private bool CanCalibrate() => !IsClosing && !IsConnecting && IsConnected;
     private void RefreshCommands()
     {
@@ -68,7 +70,7 @@ public partial class MainViewModel : ObservableObject
         if (IsClosing) return;
         InputDiagnostics.UiTick();
         var snapshot = runtime.Snapshot;
-        IsConnected = runtime.Connected; IsCalibrated = snapshot.Calibrated;
+        IsConnected = runtime.Connected; IsCalibrated = snapshot.Calibrated; IsMouseEnabled = snapshot.Enabled;
         EngineStatus = IsConnecting ? $"正在等待蓝牙响应，已用时 {elapsed.Elapsed.TotalSeconds:F0} 秒…" : IsConnected ? snapshot.Status : "鼠标控制已停止";
         MouseButtonText = snapshot.Enabled ? "关闭鼠标" : "开启鼠标";
     }

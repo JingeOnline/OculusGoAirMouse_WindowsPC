@@ -27,7 +27,7 @@ static class ViewModelChecks
         await vm.ToggleMouseCommand.ExecuteAsync(null);
         Check(runtime.Snapshot.Enabled && vm.MouseButtonText == "关闭鼠标", "Toggle command binding");
         await vm.CalibrateCommand.ExecuteAsync(null);
-        Check(!vm.IsCalibrated && !runtime.Snapshot.Enabled, "Calibrate command resets control");
+        Check(!vm.IsCalibrated && runtime.Snapshot.Enabled && vm.ToggleMouseCommand.CanExecute(null), "Recalibration must preserve enable and permit stopping");
         vm.Settings.Fields[1].TextValue = "2.25";
         await vm.Settings.SaveCommand.ExecuteAsync(null);
         Check(store.Value.SensitivityX == 2.25 && runtime.Applied!.SensitivityX == 2.25, "Save/apply ViewModel command");
@@ -111,7 +111,7 @@ static class ViewModelChecks
         public Task ConnectAsync(Settings settings) { if (ThrowOnConnect) throw new Exception("测试错误"); LastConnectionSettings = settings.Copy(); Connected = true; return Task.CompletedTask; }
         public Task DisconnectAsync(string reason) { Connected = false; Disconnects++; Snapshot = new(false, false, "已停止"); return Task.CompletedTask; }
         public Task ToggleAsync() { Snapshot = Snapshot with { Enabled = !Snapshot.Enabled }; return Task.CompletedTask; }
-        public Task CalibrateAsync() { Snapshot = new(false, false, "校准中"); return Task.CompletedTask; }
+        public Task CalibrateAsync() { Snapshot = new(Snapshot.Enabled, false, "校准中"); return Task.CompletedTask; }
         public ValueTask DisposeAsync() { Connected = false; Disposals++; Faulted = null; return ValueTask.CompletedTask; }
     }
 }

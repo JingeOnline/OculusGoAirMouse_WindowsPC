@@ -15,7 +15,7 @@
         <TextBlock Text="从连接开始" FontSize="22" FontWeight="SemiBold"/>
         <TextBlock Text="1. 在 Windows 蓝牙设置中配对控制器，并退出 Python 版本。&#10;2. 按 Trigger 唤醒控制器，然后点击“搜索并连接”。&#10;3. 静置完成校准，再点击“开启鼠标”。" TextWrapping="Wrap" LineHeight="30" Margin="0,14,0,24"/>
         <TextBlock Text="控制方式" FontSize="20" FontWeight="SemiBold"/>
-        <TextBlock Text="Oculus：光标回到主显示器中央&#10;Trigger：左键，按住可拖拽&#10;Back：右键&#10;触摸板：上下 / 左右滚动（传统整格滚动）&#10;关闭窗口或断开连接：停止控制并释放鼠标按键" LineHeight="30" Margin="0,12,0,20"/>
+        <TextBlock Text="Oculus 短按：松开时光标回到主显示器中央&#10;Oculus 长按 1 秒：重新校准，请保持控制器静止&#10;Trigger：左键，按住可拖拽&#10;Back：右键&#10;触摸板：上下 / 左右滚动（传统整格滚动）&#10;关闭窗口或断开连接：停止控制并释放鼠标按键" LineHeight="30" Margin="0,12,0,20"/>
         <TextBlock Text="参数可在设置页修改并保存；保存后暂停鼠标并重新校准。蓝牙名称与超时设置在下一次连接时使用。" TextWrapping="Wrap" Opacity="0.7"/>
       </StackPanel></ScrollViewer></TabItem>
       <TabItem Header="设置"><Grid Margin="16"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>

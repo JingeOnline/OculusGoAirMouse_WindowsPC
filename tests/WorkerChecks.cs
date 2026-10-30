@@ -16,6 +16,12 @@ static class WorkerChecks
         for (int i = 0; i < 10; i++) worker.PostFrame(new byte[20], true);
         await worker.ToggleAsync();
         Check(worker.Snapshot.Enabled && worker.Snapshot.Calibrated, "Worker calibration ordering");
+        await worker.CalibrateAsync();
+        Check(worker.Snapshot.Enabled && !worker.Snapshot.Calibrated, "Worker manual calibration changed mouse switch");
+        await worker.StartSessionAsync();
+        Check(!worker.Snapshot.Enabled && !worker.Snapshot.Calibrated, "New session retained previous mouse enable");
+        for (int i = 0; i < 10; i++) worker.PostFrame(new byte[20], true);
+        await worker.ToggleAsync();
 
         byte[] Buttons(byte value) { var bytes = new byte[20]; bytes[19] = value; return bytes; }
         worker.PostFrame(Buttons(4), false);

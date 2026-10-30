@@ -26,9 +26,9 @@ output.Events.Clear(); engine.Sensor(Packet(100, 100)); Check(output.Events.Sequ
 engine.Sensor(Packet(0, 0, 0)); output.Events.Clear(); engine.Sensor(Packet(300, 300)); Check(output.Events.Count == 0, "Retouch jumps");
 engine.Sensor(Packet(300, 300, 4)); engine.Sensor(Packet(300, 300, 0)); engine.Sensor(Packet(300, 300, 2)); engine.Disable();
 Check(output.Events.SequenceEqual(new[] { (2u, 0), (4u, 0), (8u, 0), (16u, 0) }), "Buttons and disable release");
-output.Events.Clear(); engine.Sensor(Packet(0, 0, 1)); engine.Sensor(Packet(0, 0, 1)); Check(output.Centers == 1, "Home edge detection");
-engine.Sensor(Packet(0, 0, 0)); engine.Sensor(Packet(0, 0, 1)); Check(output.Centers == 2, "Home second press");
-engine.Enable(); engine.Sensor(Packet(0, 0, 4)); engine.Calibrate(); Check(output.Events.Last() == (4u, 0) && !engine.Enabled && !engine.Calibrated, "Calibration releases drag");
+output.Events.Clear(); engine.Sensor(Packet(0, 0, 1)); engine.Sensor(Packet(0, 0, 1)); Check(output.Centers == 0, "Home short press waits for release");
+engine.Sensor(Packet(0, 0, 0)); engine.Sensor(Packet(0, 0, 1)); engine.Sensor(Packet(0, 0, 0)); Check(output.Centers == 2, "Home short presses");
+engine.Enable(); engine.Sensor(Packet(0, 0, 4)); engine.Calibrate(); Check(output.Events.Last() == (4u, 0) && engine.Enabled && !engine.Calibrated, "Calibration releases drag and preserves enabled state");
 engine.Gyro(new byte[1]); engine.Sensor(new byte[1]); checks++;
 var invalid = config.Copy(); invalid.Smoothing = double.NaN;
 try { invalid.Validate(); throw new Exception("NaN accepted"); } catch (ArgumentException) { checks++; }
@@ -45,6 +45,7 @@ checks += await WorkerChecks.RunAsync();
 checks += CaptionChecks.Run();
 checks += await ConnectionChecks.RunAsync();
 checks += await ViewModelChecks.RunAsync();
+checks += CalibrationChecks.Run();
 checks += await LifecycleChecks.RunAsync();
 Console.WriteLine($"PASS: {checks} migration, input-thread independence, watchdog, calibration, scrolling, button, configuration and native-layout checks.");
 
