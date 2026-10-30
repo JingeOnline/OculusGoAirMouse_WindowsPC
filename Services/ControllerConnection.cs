@@ -3,6 +3,7 @@ using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Advertisement;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Storage.Streams;
+using Windows.Devices.Enumeration;
 
 namespace OculusGoAirMouse.Services;
 
@@ -63,7 +64,11 @@ public sealed class ControllerConnection : IControllerConnection
             if (result.Status != GattCommunicationStatus.Success || result.Services.Count == 0) throw new InvalidOperationException($"读取控制器服务失败：{result.Status}。请确认已在 Windows 中配对。");
             service = result.Services[0];
             foreach (var extra in result.Services.Skip(1)) extra.Dispose();
+            var access = await service.RequestAccessAsync().AsTask(cts.Token);
+            InputDiagnostics.Write($"GATT service access={access} paired={device.DeviceInformation.Pairing.IsPaired} connection={device.ConnectionStatus}");
+            if (access != DeviceAccessStatus.Allowed) throw new UnauthorizedAccessException($"蓝牙服务访问被拒绝：{access}。请检查配对和设备访问权限。");
             var characteristics = await service.GetCharacteristicsAsync(BluetoothCacheMode.Uncached).AsTask(cts.Token);
+            InputDiagnostics.Write($"GATT characteristics status={characteristics.Status} protocolError={characteristics.ProtocolError} connection={device.ConnectionStatus}");
             if (characteristics.Status != GattCommunicationStatus.Success) throw new InvalidOperationException($"读取特征失败：{characteristics.Status}");
             gyro = characteristics.Characteristics.FirstOrDefault(c => c.Uuid == GyroId) ?? throw new InvalidOperationException("缺少陀螺仪特征。");
             sensor = characteristics.Characteristics.FirstOrDefault(c => c.Uuid == SensorId) ?? throw new InvalidOperationException("缺少按钮特征。");

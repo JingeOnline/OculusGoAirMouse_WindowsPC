@@ -138,6 +138,65 @@ static class LifecycleChecks
         Check(runtime.Snapshot.Enabled && runtime.Snapshot.Calibrated && !runtime.Snapshot.IsCalibrating, "Reconnect without auto calibration did not retain completed bias and mouse state");
         await runtime.DisposeAsync();
 
+        connection = new FakeConnection { FailConnects = 2 }; runtime = new(new RecordingMouse(), connection);
+        await runtime.ConnectAsync(new());
+        Check(connection.Connects == 3 && runtime.Connected && connection.Disconnects == 2, "Initial connection did not clean up and retry three times");
+        await runtime.DisposeAsync();
+        connection = new FakeConnection { FailConnects = 5 }; runtime = new(new RecordingMouse(), connection);
+        try { await runtime.ConnectAsync(new()); throw new Exception("Expected retries exhausted"); }
+        catch (TimeoutException) { count++; }
+        Check(connection.Connects == 3 && !runtime.Connected, "Initial connection retries were not bounded");
+        await runtime.DisposeAsync();
+        connection = new FakeConnection { FailConnects = 1 }; runtime = new(new RecordingMouse(), connection);
+        var retryWaiting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        runtime.Progress += text => { if (text.Contains("2 秒后重试")) retryWaiting.TrySetResult(); };
+        Task connecting = runtime.ConnectAsync(new()); await retryWaiting.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        await runtime.DisconnectAsync("cancel between attempts");
+        try { await connecting; throw new Exception("Cancelled retry unexpectedly succeeded"); }
+        catch (OperationCanceledException) { count++; }
+        Check(connection.Connects == 1, "Cancellation did not stop retry delay"); await runtime.DisposeAsync();
+
+        foreach (bool enabled in new[] { true, false })
+        {
+            connection = new FakeConnection(); mouse = new RecordingMouse(); runtime = new(mouse, connection);
+            await runtime.ConnectAsync(new());
+            if (enabled) await runtime.ToggleAsync();
+            var pressed = new byte[20]; pressed[19] = 4;
+            if (enabled) { connection.Emit(pressed, false); Check(mouse.Down.Wait(1000), "Sleep test drag not started"); }
+            await runtime.SuspendAsync(); await runtime.SuspendAsync();
+            Check(!runtime.Connected && !runtime.Snapshot.Enabled && (!enabled || mouse.Up.IsSet), "Suspend did not stop input/release drag");
+            Check(connection.Disconnects == 1, "Duplicate suspend repeated teardown");
+            await runtime.ResumeAsync(); await runtime.ResumeAsync();
+            await WaitUntil(() => connection.Connects == 2 && runtime.Connected);
+            Check(runtime.Snapshot.Enabled == enabled, "Resume changed pre-sleep mouse state");
+            await runtime.DisposeAsync();
+        }
+        foreach (bool autoReconnect in new[] { true, false })
+        {
+            connection = new FakeConnection(); runtime = new(new RecordingMouse(), connection);
+            await runtime.ConnectAsync(new Settings { AutoReconnect = autoReconnect });
+            await runtime.SuspendAsync();
+            if (autoReconnect) await runtime.DisconnectAsync("manual stop during sleep");
+            await runtime.ResumeAsync(); await Task.Delay(30);
+            Check(connection.Connects == 1 && !runtime.Connected, "Manual stop/disabled setting was ignored after resume");
+            await runtime.DisposeAsync();
+        }
+        connection = new FakeConnection(); runtime = new(new RecordingMouse(), connection);
+        await runtime.ConnectAsync(new()); await runtime.SuspendAsync(); await runtime.ResumeAsync();
+        await runtime.DisconnectAsync("cancel wake delay");
+        Check(connection.Connects == 1 && !runtime.Snapshot.Enabled, "Wake delay could not be cancelled"); await runtime.DisposeAsync();
+        connection = new FakeConnection { BlockConnect = true }; runtime = new(new RecordingMouse(), connection);
+        connecting = runtime.ConnectAsync(new()); await connection.Started.Task;
+        await runtime.SuspendAsync();
+        try { await connecting; throw new Exception("Suspend failed to cancel scan"); }
+        catch (OperationCanceledException) { count++; }
+        connection.BlockConnect = false; await runtime.ResumeAsync(); await WaitUntil(() => runtime.Connected);
+        Check(connection.Connects == 2, "Resume did not recover in-flight pre-sleep connection"); await runtime.DisposeAsync();
+        connection = new FakeConnection(); runtime = new(new RecordingMouse(), connection);
+        await runtime.ConnectAsync(new()); await runtime.SuspendAsync(); await runtime.ResumeAsync();
+        await runtime.DisposeAsync();
+        Check(!runtime.InputThreadAlive && connection.Subscribers == 0 && connection.Connects == 1, "Exit during wake delay leaked a retry or input thread");
+
         string path = Path.Combine(AppContext.BaseDirectory, "scratch", "diagnostic-close.log");
         var writer = new DiagnosticWriter(path);
         writer.Write("first"); writer.Write("last");

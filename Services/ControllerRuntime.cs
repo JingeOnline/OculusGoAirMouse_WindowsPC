@@ -14,6 +14,8 @@ public sealed class ControllerRuntime : IControllerRuntime
     private CancellationTokenSource? retryCancellation;
     private Task? retryTask;
     private bool interrupted, resumeMouse, manuallyStopped;
+    private bool sleeping, wakeWanted, wakeMouse;
+    private Task suspension = Task.CompletedTask;
     public EngineSnapshot Snapshot => engine.Snapshot;
     public bool Connected => !disposing && connection.Connected;
     public bool InputThreadAlive => engine.IsRunning;
@@ -39,7 +41,7 @@ public sealed class ControllerRuntime : IControllerRuntime
     {
         lock (lifecycle)
         {
-            if (disposing || manuallyStopped || connection.Connected) return;
+            if (disposing || sleeping || manuallyStopped || connection.Connected) return;
             if (!currentSettings.AutoReconnect) { Disconnected?.Invoke(); return; }
             if (retryTask is { IsCompleted: false }) return;
             if (!interrupted) resumeMouse = Snapshot.Enabled;
@@ -64,7 +66,7 @@ public sealed class ControllerRuntime : IControllerRuntime
                     {
                         cancellation.Token.ThrowIfCancellationRequested();
                         var attempt = connectionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellation.Token);
-                        pending = activeConnection = ConnectCoreAsync(currentSettings.Copy(), attempt, resumeMouse);
+                        pending = activeConnection = ConnectCoreAsync(currentSettings.Copy(), attempt, resumeMouse, maxAttempts: 1);
                     }
                     await pending.ConfigureAwait(false);
                     interrupted = false;
@@ -103,7 +105,7 @@ public sealed class ControllerRuntime : IControllerRuntime
         if (disposing) return;
         lock (lifecycle)
         {
-            if (manuallyStopped || retryTask is { IsCompleted: false }) return;
+            if (sleeping || manuallyStopped || retryTask is { IsCompleted: false }) return;
             if (!recovered && !interrupted) { resumeMouse = Snapshot.Enabled; interrupted = true; }
         }
         Task safety = recovered ? engine.StartSessionAsync(currentSettings.AutoReconnect && resumeMouse, currentSettings.AutoCalibrateOnConnect) : engine.StopSessionAsync();
@@ -139,6 +141,7 @@ public sealed class ControllerRuntime : IControllerRuntime
         {
             ThrowIfDisposing();
             if (retryTask is { IsCompleted: false }) throw new InvalidOperationException("正在自动重连。");
+            if (sleeping) throw new InvalidOperationException("系统正在睡眠，等待恢复后连接。");
             manuallyStopped = false; interrupted = false; currentSettings = settings.Copy();
             if (disconnection is { IsCompleted: false }) throw new InvalidOperationException("正在释放上一次连接。");
             if (activeConnection is { IsCompleted: false }) throw new InvalidOperationException("已有连接操作正在进行。");
@@ -146,14 +149,34 @@ public sealed class ControllerRuntime : IControllerRuntime
             return activeConnection = ConnectCoreAsync(settings.Copy(), cancellation);
         }
     }
-    private async Task ConnectCoreAsync(Settings settings, CancellationTokenSource cancellation, bool restoreMouse = false)
+    private async Task ConnectCoreAsync(Settings settings, CancellationTokenSource cancellation, bool restoreMouse = false, int maxAttempts = 3)
     {
         try
         {
             await engine.StartSessionAsync(restoreMouse, settings.AutoCalibrateOnConnect);
             cancellation.Token.ThrowIfCancellationRequested();
             ThrowIfDisposing();
-            await connection.ConnectAsync(settings, cancellation.Token);
+            for (int attempt = 1; ; attempt++)
+            {
+                cancellation.Token.ThrowIfCancellationRequested();
+                try
+                {
+                    OnProgress($"连接尝试 {attempt}/{maxAttempts}");
+                    await connection.ConnectAsync(settings, cancellation.Token);
+                    cancellation.Token.ThrowIfCancellationRequested();
+                    break;
+                }
+                catch (Exception) when (cancellation.IsCancellationRequested) { throw new OperationCanceledException(cancellation.Token); }
+                catch (Exception ex)
+                {
+                    try { await connection.StopNotificationsAsync().ConfigureAwait(false); }
+                    finally { connection.Disconnect(); }
+                    InputDiagnostics.Write($"connect attempt={attempt} error={ex}");
+                    if (attempt >= maxAttempts) throw;
+                    OnProgress($"连接失败：{ex.Message}；2 秒后重试（{attempt + 1}/{maxAttempts}）。");
+                    await Task.Delay(TimeSpan.FromSeconds(2), cancellation.Token).ConfigureAwait(false);
+                }
+            }
         }
         catch { await engine.StopSessionAsync(); throw; }
         finally
@@ -164,12 +187,49 @@ public sealed class ControllerRuntime : IControllerRuntime
     }
     public Task DisconnectAsync(string reason)
     {
-        ThrowIfDisposing(); return StopAndDisconnectAsync(reason);
+        lock (lifecycle) { ThrowIfDisposing(); wakeWanted = false; }
+        return StopAndDisconnectAsync(reason);
     }
     private async Task StopAndDisconnectAsync(string reason)
     {
         await StopRetryAsync().ConfigureAwait(false);
         await RequestDisconnect(reason).ConfigureAwait(false);
+    }
+    public Task SuspendAsync()
+    {
+        lock (lifecycle)
+        {
+            if (disposing || sleeping) return suspension;
+            sleeping = true;
+            wakeWanted = !manuallyStopped && (connection.Connected || activeConnection is { IsCompleted: false } || retryTask is { IsCompleted: false });
+            wakeMouse = interrupted ? resumeMouse : Snapshot.Enabled;
+            OnProgress("系统进入睡眠，已暂停控制并释放连接。");
+            return suspension = StopAndDisconnectAsync("系统睡眠");
+        }
+    }
+    public async Task ResumeAsync()
+    {
+        Task pending;
+        lock (lifecycle) { if (disposing || !sleeping) return; pending = suspension; }
+        try { await pending.ConfigureAwait(false); }
+        catch (Exception ex) { InputDiagnostics.Write("suspend cleanup error=" + ex.Message); }
+        lock (lifecycle)
+        {
+            if (disposing || !sleeping) return;
+            sleeping = false;
+            if (!wakeWanted || !currentSettings.AutoReconnect) { wakeWanted = false; return; }
+            wakeWanted = false; manuallyStopped = false;
+            interrupted = true; resumeMouse = wakeMouse;
+            OnProgress("系统已唤醒，准备恢复控制器连接。");
+            var cancellation = retryCancellation = new CancellationTokenSource();
+            retryTask = Task.Run(async () =>
+            {
+                try { await Task.Delay(TimeSpan.FromSeconds(2), cancellation.Token).ConfigureAwait(false); }
+                catch (OperationCanceledException) { lock (lifecycle) { if (ReferenceEquals(retryCancellation, cancellation)) retryCancellation = null; } cancellation.Dispose(); return; }
+                await RetryAsync(cancellation).ConfigureAwait(false);
+            });
+            LinkChanged?.Invoke(false);
+        }
     }
     private Task RequestDisconnect(string reason)
     {
