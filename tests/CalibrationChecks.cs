@@ -29,34 +29,33 @@ static class CalibrationChecks
         Check(engine.Calibrated && !engine.Enabled, "Calibration completion overrode manual disable");
 
         engine.Enable(); int centers = mouse.Centers; Buttons(1);
-        Check(mouse.Centers == centers, "Home press centered before distinguishing long press");
+        Check(mouse.Centers == centers + 1, "Home did not center on button down");
         now += .4; Buttons(0);
-        Check(mouse.Centers == centers + 1 && engine.Calibrated, "Short Home press did not center");
+        Check(mouse.Centers == centers + 1 && engine.Calibrated, "Release repeated centering or calibrated short press");
 
-        now += .1; Buttons(1); now += .9; Buttons(1);
-        Check(engine.Calibrated, "Long press fired too early");
-        now += .2; Buttons(1);
-        Check(!engine.Calibrated && engine.Enabled && mouse.Centers == centers + 1, "Long press did not calibrate or unexpectedly centered");
-        Samples(4); Buttons(1);
+        now += .1; Buttons(1); now += .99; engine.CheckTimeout();
+        Check(engine.Calibrated && mouse.Centers == centers + 2, "Long press fired early or repeated center");
+        now += .02; engine.CheckTimeout();
+        Check(!engine.Calibrated && engine.Enabled, "Worker timer did not calibrate while button remained held");
+        Samples(4); Buttons(1); engine.CheckTimeout();
         Check(Math.Abs(engine.CalibrationProgress - .4) < .001, "Held Home repeatedly restarted calibration");
-        Samples(6); Buttons(1);
+        Samples(6); Buttons(1); engine.CheckTimeout();
         Check(engine.Calibrated && engine.Enabled, "Long press calibration failed to resume");
         now += .2; Buttons(0);
-        Check(mouse.Centers == centers + 1 && engine.Calibrated, "Long press release triggered short action");
-        now += .1; Buttons(1); now += 1.1; Buttons(0);
-        Check(!engine.Calibrated && engine.Enabled, "Long press missed when release is first threshold-crossing packet");
-        Samples(10);
+        Check(mouse.Centers == centers + 2 && engine.Calibrated, "Release triggered an extra action");
 
         engine.Disable(); now += .1; Buttons(1); now += 1.1; Buttons(1);
-        Check(!engine.Calibrated && !engine.Enabled, "Long press while disabled changed enable state");
+        Check(!engine.Calibrated && !engine.Enabled && mouse.Centers == centers + 3, "Long press packet failed or changed enable state");
         Buttons(0); Samples(10);
         Check(engine.Calibrated && !engine.Enabled, "Disabled long calibration auto-enabled mouse");
         now += .1; Buttons(1); now += 3.1; engine.CheckTimeout(); Buttons(0);
-        Check(engine.Calibrated && mouse.Centers == centers + 1, "Stale Home state triggered action after timeout");
+        Check(engine.Calibrated && mouse.Centers == centers + 4, "Stale Home state triggered action after timeout");
         now += .1; Buttons(1); now += 3.1; Buttons(0);
-        Check(engine.Calibrated && mouse.Centers == centers + 1, "Packet gap triggered stale gesture");
+        Check(engine.Calibrated && mouse.Centers == centers + 5, "Packet gap triggered stale gesture");
         now += .1; Buttons(1); now += .2; Buttons(0);
-        Check(mouse.Centers == centers + 2, "Home did not recover after timeout");
+        Check(mouse.Centers == centers + 6, "Home did not recover after timeout");
+        now += .1; Buttons(1); now += .5; Buttons(0); now += .6; engine.CheckTimeout();
+        Check(engine.Calibrated && mouse.Centers == centers + 7, "Released button retained long-press timer");
 
         engine.Enable(); engine.Apply(new Settings { CalibrationDurationSeconds = .1 }); Samples(10);
         Check(!engine.Enabled, "Settings application unexpectedly restored mouse control");

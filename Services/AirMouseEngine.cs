@@ -43,31 +43,32 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
         finally { if (right) { output.Send(16); right = false; } }
     }
     private void ResetOculusGesture() { oculus = false; oculusPressedAt = 0; oculusLongPressHandled = false; }
+    private void CheckOculusLongPress(double now)
+    {
+        if (!oculus || oculusLongPressHandled || now - oculusPressedAt < OculusLongPressSeconds) return;
+        oculusLongPressHandled = true;
+        Calibrate();
+        InputDiagnostics.Write("Oculus long press: recalibration");
+    }
     private void HandleOculus(bool pressed, double now)
     {
-        if (pressed)
+        if (!pressed) { ResetOculusGesture(); return; }
+        if (!oculus)
         {
-            if (!oculus) { oculus = true; oculusPressedAt = now; oculusLongPressHandled = false; }
-            if (!oculusLongPressHandled && now - oculusPressedAt >= OculusLongPressSeconds)
-            {
-                oculusLongPressHandled = true;
-                Calibrate();
-                InputDiagnostics.Write("Oculus long press: recalibration");
-            }
+            oculus = true; oculusPressedAt = now; oculusLongPressHandled = false;
+            output.Center(); remainingX = remainingY = 0;
         }
-        else if (oculus)
-        {
-            if (!oculusLongPressHandled)
-            {
-                if (now - oculusPressedAt >= OculusLongPressSeconds) Calibrate();
-                else { output.Center(); remainingX = remainingY = 0; }
-            }
-            ResetOculusGesture();
-        }
+        CheckOculusLongPress(now);
     }
     public void CheckTimeout()
     {
-        if (lastSensor > 0 && Now - lastSensor > settings.ButtonTimeout) { Release(); ResetOculusGesture(); }
+        double now = Now;
+        if (lastSensor > 0 && now - lastSensor > settings.ButtonTimeout)
+        {
+            Release(); ResetOculusGesture(); return;
+        }
+        // The input worker calls this even when no new button packet arrives.
+        CheckOculusLongPress(now);
     }
     public void Sensor(byte[] data)
     {

@@ -28,7 +28,7 @@ output.Events.Clear(); engine.Sensor(Packet(100, 100)); Check(output.Events.Sequ
 engine.Sensor(Packet(0, 0, 0)); output.Events.Clear(); engine.Sensor(Packet(300, 300)); Check(output.Events.Count == 0, "Retouch jumps");
 engine.Sensor(Packet(300, 300, 4)); engine.Sensor(Packet(300, 300, 0)); engine.Sensor(Packet(300, 300, 2)); engine.Disable();
 Check(output.Events.SequenceEqual(new[] { (2u, 0), (4u, 0), (8u, 0), (16u, 0) }), "Buttons and disable release");
-output.Events.Clear(); engine.Sensor(Packet(0, 0, 1)); engine.Sensor(Packet(0, 0, 1)); Check(output.Centers == 0, "Home short press waits for release");
+output.Events.Clear(); engine.Sensor(Packet(0, 0, 1)); engine.Sensor(Packet(0, 0, 1)); Check(output.Centers == 1, "Home button down centers immediately and held packets do not repeat");
 engine.Sensor(Packet(0, 0, 0)); engine.Sensor(Packet(0, 0, 1)); engine.Sensor(Packet(0, 0, 0)); Check(output.Centers == 2, "Home short presses");
 engine.Enable(); engine.Sensor(Packet(0, 0, 4)); engine.Calibrate(); Check(output.Events.Last() == (4u, 0) && engine.Enabled && !engine.Calibrated, "Calibration releases drag and preserves enabled state");
 engine.Gyro(new byte[1]); engine.Sensor(new byte[1]); checks++;
