@@ -87,6 +87,23 @@ static class CalibrationChecks
         Check(engine.IsCalibrating, "Oculus did not start manual calibration with auto calibration disabled");
         Buttons(0); Samples(10);
         Check(engine.Calibrated && !engine.IsCalibrating, "Manual Oculus calibration did not complete");
+        engine.Apply(new Settings { CalibrationDurationSeconds = .1 });
+        mouse.Flags.Clear(); engine.Enable(); now += .01; engine.Gyro(motion);
+        Check(engine.Enabled && !engine.Calibrated && !engine.IsCalibrating && mouse.Flags.Contains(1), "Uncalibrated mouse did not move with raw gyro data");
+        mouse.Flags.Clear(); Buttons(4); Buttons(0); Buttons(2); Buttons(0);
+        Check(mouse.Flags.SequenceEqual(new uint[] { 2, 4, 8, 16 }), "Uncalibrated mouse buttons did not work");
+        byte[] Touch(ushort x, ushort y)
+        {
+            var packet = new byte[20]; packet[19] = 16;
+            BinaryPrimitives.WriteUInt16LittleEndian(packet.AsSpan(14), x);
+            BinaryPrimitives.WriteUInt16LittleEndian(packet.AsSpan(16), y); return packet;
+        }
+        mouse.Flags.Clear(); engine.Sensor(Touch(100, 100)); engine.Sensor(Touch(130, 130));
+        Check(mouse.Flags.Contains(0x800) && mouse.Flags.Contains(0x1000), "Uncalibrated mouse did not scroll both axes");
+        engine.Calibrate(); mouse.Flags.Clear(); now += .01; engine.Gyro(motion); Buttons(4);
+        Check(engine.Enabled && engine.IsCalibrating && mouse.Flags.Count == 0, "Calibration did not pause uncalibrated mouse input");
+        Buttons(0); Samples(10);
+        Check(engine.Enabled && engine.Calibrated, "Calibration did not resume previously uncalibrated enabled mouse");
         string path = Path.Combine(AppContext.BaseDirectory, "scratch", "calibration-settings.json");
         SettingsStore.Save(new Settings { AutoCalibrateOnConnect = true, CalibrationDurationSeconds = .3 }, path);
         Check(SettingsStore.Load(path).CalibrationDurationSeconds == .3 && SettingsStore.Load(path).AutoCalibrateOnConnect, "Duration did not roundtrip through JSON");

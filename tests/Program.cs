@@ -13,7 +13,7 @@ config.Validate();
 Check(config.SensitivityX == 1.75 && config.SensitivityY == 1.25 && config.DeadZone == 65, "Migrated movement values");
 Check(config.ScrollUnitsPerNotch == 30 && config.ScrollHorizontalInvert && !config.ScrollVerticalInvert, "Migrated scroll values");
 engine.Apply(config);
-try { engine.Enable(); throw new Exception("Enable before calibration accepted"); } catch (InvalidOperationException) { checks++; }
+engine.Enable(); Check(engine.Enabled && engine.IsCalibrating, "Enable during calibration should preserve calibration and pause output"); engine.Disable();
 engine.Gyro(new byte[20]);
 for (int i = 0; i < 249; i++) { now += .005; engine.Gyro(new byte[20]); }
 Check(!engine.Calibrated, "Calibration completed too early");

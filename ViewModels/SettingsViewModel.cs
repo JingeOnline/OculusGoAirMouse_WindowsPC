@@ -43,7 +43,7 @@ public partial class SettingsViewModel : ObservableObject
             foreach (var field in Fields) field.WriteTo(candidate);
             candidate.Validate(); store.Save(candidate); current = candidate.Copy();
             await apply(candidate);
-            Message = "已保存并应用。鼠标已暂停；请完成校准后再开启鼠标。";
+            Message = "已保存并应用。鼠标已暂停；可重新开启鼠标，校准期间暂停输入。";
         }
         catch (Exception ex) { Message = "保存失败：" + ex.Message; }
     }

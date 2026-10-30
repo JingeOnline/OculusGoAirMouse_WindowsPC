@@ -21,11 +21,12 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
     public bool IsCalibrating { get; private set; }
     public double CalibrationProgress => Calibrated ? 1 : Math.Clamp((lastCalibrationSample - calibrationStarted) / settings.CalibrationDurationSeconds, 0, 1);
     public string Status => Calibrated ? (Enabled ? "鼠标控制已开启" : "校准完成，可以开启鼠标")
-        : !IsCalibrating ? "等待手动校准：点击重新校准或长按 Oculus 1 秒。" : $"静止校准：{CalibrationProgress:P0} / {settings.CalibrationDurationSeconds:0.##} 秒" + (Enabled ? "（完成后继续控制）" : "");
+        : !IsCalibrating ? (Enabled ? "鼠标控制已开启（未校准）" : "鼠标已关闭（未校准），可直接开启或手动校准。") : $"静止校准：{CalibrationProgress:P0} / {settings.CalibrationDurationSeconds:0.##} 秒" + (Enabled ? "（完成后继续控制）" : "");
     private double Now => clock?.Invoke() ?? Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
     public void Apply(Settings value)
     {
         Disable(); settings = value.Copy(); Calibrated = false;
+        Array.Clear(bias); Array.Clear(filtered); lastTime = Now;
         if (settings.AutoCalibrateOnConnect) Calibrate(); else CancelCalibration();
     }
     internal void CancelCalibration()
@@ -47,7 +48,7 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
         InputDiagnostics.Write("calibration started; mouseEnabled=" + Enabled);
     }
     internal void RestoreEnabled(bool enabled) { Enabled = enabled; ResetMotion(); }
-    public void Enable() { if (!Calibrated) throw new InvalidOperationException("请先完成静止校准。"); Enabled = true; ResetMotion(); }
+    public void Enable() { Enabled = true; ResetMotion(); lastTime = Now; }
     public void Disable() { Enabled = false; ResetMotion(); Release(); ResetOculusGesture(); }
     private void ResetMotion() { remainingX = remainingY = 0; ResetScroll(); }
     private void ResetScroll() { touchX = touchY = null; scrollX = scrollY = 0; }
@@ -94,7 +95,7 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
         lastSensor = now;
         byte buttons = data[19];
         HandleOculus((buttons & 1) != 0, now);
-        if (!Enabled || !Calibrated) { Release(); return; }
+        if (!Enabled || IsCalibrating) { Release(); return; }
         if ((buttons & 16) == 0) ResetScroll();
         else
         {
@@ -121,7 +122,6 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
         if (values[0] == -10922 && values[1] == -10922 && values[2] == -10922) return;
         var gyro = new double[3];
         for (int i = 0; i < 3; i++) gyro[i] = (values[i] + values[i + 3] + values[i + 6]) / 3.0;
-        if (!Calibrated && !IsCalibrating) return;
         if (IsCalibrating)
         {
             double timestamp = Now;

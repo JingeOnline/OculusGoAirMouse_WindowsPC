@@ -22,7 +22,7 @@ static class ViewModelChecks
         runtime.EmitProgress("连接中"); ui.Drain();
         Check(vm.ConnectionStatus == "连接中" && changed.Contains("ConnectionStatus"), "Observable status binding");
         Check(vm.IsConnected && !vm.ConnectCommand.CanExecute(null) && vm.DisconnectCommand.CanExecute(null), "Connected command availability");
-        Check(!vm.ToggleMouseCommand.CanExecute(null), "Mouse enabled before calibration");
+        Check(vm.ToggleMouseCommand.CanExecute(null), "Uncalibrated connection must allow toggling mouse");
         runtime.Snapshot = new(false, true, "已校准"); ui.Tick();
         Check(vm.ToggleMouseCommand.CanExecute(null) && vm.CalibrateCommand.CanExecute(null), "Calibrated command availability");
         await vm.ToggleMouseCommand.ExecuteAsync(null);

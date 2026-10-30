@@ -16,7 +16,7 @@ public partial class MainViewModel : ObservableObject
     private bool initialized;
     private Task? shutdown;
     private readonly Queue<string> logLines = new();
-    public string Title => "Oculus Go Air Mouse · 0.3.6";
+    public string Title => "Oculus Go Air Mouse · 0.3.7";
     public SettingsViewModel Settings { get; }
     [ObservableProperty] private string connectionStatus = "未连接";
     [ObservableProperty] private string engineStatus = "连接后可点击重新校准或长按 Oculus 1 秒。";
@@ -39,7 +39,7 @@ public partial class MainViewModel : ObservableObject
         if (loadError != null) Settings.Message = loadError;
         runtime.Progress += OnProgress; runtime.Faulted += OnFault;
         runtime.Disconnected += OnDisconnected; runtime.LinkChanged += OnLinkChanged;
-        Log("版本 0.3.6：连接后自动校准可配置，默认关闭。");
+        Log("版本 0.3.7：允许未校准时直接开启鼠标。");
     }
     partial void OnIsConnectingChanged(bool value) => RefreshCommands();
     partial void OnIsConnectedChanged(bool value) => RefreshCommands();
@@ -49,7 +49,7 @@ public partial class MainViewModel : ObservableObject
     partial void OnIsClosingChanged(bool value) => RefreshCommands();
     private bool CanConnect() => !IsClosing && !IsConnecting && !IsConnected && !IsRecovering;
     private bool CanDisconnect() => !IsClosing && (IsConnecting || IsConnected || IsRecovering);
-    private bool CanToggle() => !IsClosing && !IsConnecting && IsConnected && (IsCalibrated || IsMouseEnabled);
+    private bool CanToggle() => !IsClosing && !IsConnecting && IsConnected;
     private bool CanCalibrate() => !IsClosing && !IsConnecting && IsConnected;
     private void RefreshCommands()
     {
