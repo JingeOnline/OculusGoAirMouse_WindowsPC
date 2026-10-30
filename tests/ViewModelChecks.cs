@@ -11,7 +11,7 @@ static class ViewModelChecks
         var runtime = new FakeRuntime(); var store = new FakeStore(); var ui = new FakeUi();
         var vm = new MainViewModel(runtime, store, ui);
         Check(vm.ConnectCommand.CanExecute(null) && !vm.DisconnectCommand.CanExecute(null) && !vm.ToggleMouseCommand.CanExecute(null), "Initial command availability");
-        Check(vm.Settings.Fields.Count == 20 && vm.Settings.Fields[1].TextValue == 1.75.ToString(), "Bound settings migration");
+        Check(vm.Settings.Fields.Count == 22 && vm.Settings.Fields[1].TextValue == 1.75.ToString(), "Bound settings migration");
         Check(!vm.Settings.Fields[18].BooleanValue, "Auto calibration checkbox must default off");
         await vm.InitializeAsync();
         Check(runtime.Applied!.DeadZone == 65 && runtime.ApplyCount == 1, "Initialization applies saved settings");
@@ -30,12 +30,14 @@ static class ViewModelChecks
         await vm.CalibrateCommand.ExecuteAsync(null);
         Check(!vm.IsCalibrated && runtime.Snapshot.Enabled && vm.ToggleMouseCommand.CanExecute(null), "Recalibration must preserve enable and permit stopping");
         vm.Settings.Fields[1].TextValue = "2.25";
+        vm.Settings.Fields[20].TextValue = "150"; vm.Settings.Fields[21].TextValue = "80";
         vm.Settings.Fields[18].BooleanValue = true;
         vm.Settings.Fields[10].TextValue = .2.ToString();
         await vm.Settings.SaveCommand.ExecuteAsync(null);
         Check(store.Value.SensitivityX == 2.25 && runtime.Applied!.SensitivityX == 2.25, "Save/apply ViewModel command");
         Check(store.Value.CalibrationDurationSeconds == .2 && runtime.Applied!.CalibrationDurationSeconds == .2, "Duration not saved/applied from settings page");
         Check(store.Value.AutoCalibrateOnConnect && runtime.Applied!.AutoCalibrateOnConnect, "Auto calibration setting was not saved/applied");
+        Check(store.Value.ClickPressLockMilliseconds == 150 && runtime.Applied!.ClickReleaseLockMilliseconds == 80, "Lock settings not saved/applied through settings page");
         int saves = store.Saves;
         vm.Settings.Fields[10].TextValue = .09.ToString();
         await vm.Settings.SaveCommand.ExecuteAsync(null);

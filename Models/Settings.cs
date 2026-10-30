@@ -17,6 +17,8 @@ public sealed class Settings
     public double Smoothing { get; set; } = 0.8;
     public int MaxMove { get; set; } = 100;
     public double CalibrationDurationSeconds { get; set; } = 1.25;
+    public int ClickPressLockMilliseconds { get; set; } = 100;
+    public int ClickReleaseLockMilliseconds { get; set; } = 100;
     public double ButtonTimeout { get; set; } = 3;
     public double ScrollUnitsPerNotch { get; set; } = 30;
     public bool ScrollVerticalInvert { get; set; }
@@ -27,6 +29,7 @@ public sealed class Settings
     public void Validate()
     {
         static bool Range(double v, double min, double max) => double.IsFinite(v) && v >= min && v <= max;
+        if (ClickPressLockMilliseconds is < 0 or > 2000 || ClickReleaseLockMilliseconds is < 0 or > 2000) throw new ArgumentException("点击光标锁定时长范围为 0–2000 毫秒，0 表示关闭。");
         if (string.IsNullOrWhiteSpace(DeviceName)) throw new ArgumentException("控制器名称不能为空。");
         if (!Range(SensitivityX, 0.001, 100) || !Range(SensitivityY, 0.001, 100)) throw new ArgumentException("灵敏度范围为 0.001–100。");
         if (!Range(DeadZone, 0, 32767)) throw new ArgumentException("死区范围为 0–32767。");

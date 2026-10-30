@@ -14,7 +14,7 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
     private double lastTime, lastSensor, remainingX, remainingY, scrollX, scrollY;
     private int? touchX, touchY;
     private bool left, right, oculus;
-    private double oculusPressedAt;
+    private double oculusPressedAt, pointerLockedUntil;
     private bool oculusLongPressHandled;
     public bool Enabled { get; private set; }
     public bool Calibrated { get; private set; }
@@ -50,12 +50,19 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
     internal void RestoreEnabled(bool enabled) { Enabled = enabled; ResetMotion(); }
     public void Enable() { Enabled = true; ResetMotion(); lastTime = Now; }
     public void Disable() { Enabled = false; ResetMotion(); Release(); ResetOculusGesture(); }
-    private void ResetMotion() { remainingX = remainingY = 0; ResetScroll(); }
+    private void ResetMotion() { pointerLockedUntil = 0; remainingX = remainingY = 0; ResetScroll(); }
+    private void LockPointer(int milliseconds, double now)
+    {
+        if (milliseconds == 0) return;
+        pointerLockedUntil = Math.Max(pointerLockedUntil, now + milliseconds / 1000.0);
+        remainingX = remainingY = 0; Array.Clear(filtered); lastTime = now;
+    }
     private void ResetScroll() { touchX = touchY = null; scrollX = scrollY = 0; }
     public void Release()
     {
         ResetScroll();
         output.CancelPendingClick();
+        if (left || right) LockPointer(settings.ClickReleaseLockMilliseconds, Now);
         try { if (left) { output.Send(4); left = false; } }
         finally { if (right) { output.Send(16); right = false; } }
     }
@@ -111,8 +118,8 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
             touchX = x; touchY = y;
         }
         bool trigger = (buttons & 4) != 0, back = (buttons & 2) != 0;
-        if (trigger != left) { output.Send(trigger ? 2u : 4u); left = trigger; }
-        if (back != right) { output.Send(back ? 8u : 16u); right = back; }
+        if (trigger != left) { LockPointer(trigger ? settings.ClickPressLockMilliseconds : settings.ClickReleaseLockMilliseconds, now); output.Send(trigger ? 2u : 4u); left = trigger; }
+        if (back != right) { LockPointer(back ? settings.ClickPressLockMilliseconds : settings.ClickReleaseLockMilliseconds, now); output.Send(back ? 8u : 16u); right = back; }
     }
     public void Gyro(byte[] data)
     {
@@ -140,6 +147,13 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
             }
             return;
         }
+        double now = Now;
+        if (now < pointerLockedUntil)
+        {
+            // Drop movement instead of accumulating a jump for the unlock frame.
+            remainingX = remainingY = 0; Array.Clear(filtered); lastTime = now;
+            return;
+        }
         for (int i = 0; i < 3; i++)
         {
             double corrected = gyro[i] - bias[i];
@@ -147,7 +161,7 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
             filtered[i] = settings.Smoothing * corrected + (1 - settings.Smoothing) * filtered[i];
             if (Math.Abs(filtered[i]) < settings.DeadZone) filtered[i] = 0;
         }
-        double now = Now, dt = Math.Clamp(now - lastTime, .001, .03); lastTime = now;
+        double dt = Math.Clamp(now - lastTime, .001, .03); lastTime = now;
         if (!Enabled) { ResetMotion(); return; }
         remainingX += filtered[settings.XAxis] * (settings.XInvert ? -1 : 1) * dt * settings.SensitivityX;
         remainingY += filtered[settings.YAxis] * (settings.YInvert ? -1 : 1) * dt * settings.SensitivityY;
