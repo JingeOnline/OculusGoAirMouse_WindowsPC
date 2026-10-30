@@ -28,7 +28,7 @@ public partial class SettingsViewModel : ObservableObject
             ("DeviceName", "控制器名称"), ("SensitivityX", "水平灵敏度"), ("SensitivityY", "垂直灵敏度"),
             ("DeadZone", "陀螺仪死区"), ("XAxis", "水平轴映射（0=X，1=Y，2=Z）"), ("YAxis", "垂直轴映射（0=X，1=Y，2=Z）"),
             ("XInvert", "水平光标反转"), ("YInvert", "垂直光标反转"), ("Smoothing", "光标平滑系数（越大响应越快）"),
-            ("MaxMove", "单次最大光标位移（像素）"), ("CalibrationSamples", "校准样本数"), ("ButtonTimeout", "按键数据超时（秒）"),
+            ("MaxMove", "单次最大光标位移（像素）"), ("CalibrationDurationSeconds", "校准时长（秒，0.1–3）"), ("ButtonTimeout", "按键数据超时（秒）"),
             ("ScrollUnitsPerNotch", "滚动阈值（越小滚动越快）"), ("ScrollVerticalInvert", "垂直滚动反转"), ("ScrollHorizontalInvert", "水平滚动反转"),
             ("ScanTimeoutSeconds", "扫描超时（秒）"), ("ConnectTimeoutSeconds", "连接超时（秒）"), ("AutoReconnect", "蓝牙丢失后自动重连")];
         Fields.Clear();

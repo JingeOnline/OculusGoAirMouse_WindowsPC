@@ -10,9 +10,11 @@ static class LifecycleChecks
         void Check(bool value, string message) { if (!value) throw new Exception(message); count++; }
         var mouse = new RecordingMouse(); var connection = new FakeConnection();
         var runtime = new ControllerRuntime(mouse, connection);
-        await runtime.ApplyAsync(new Settings { CalibrationSamples = 10 });
+        await runtime.ApplyAsync(new Settings { CalibrationDurationSeconds = .1 });
         await runtime.ConnectAsync(new Settings());
         Check(connection.Subscribers == 5 && runtime.Connected, "Runtime event wiring");
+        connection.Emit(new byte[20], true);
+        await Task.Delay(120);
         for (int i = 0; i < 10; i++) connection.Emit(new byte[20], true);
         await runtime.ToggleAsync();
         var down = new byte[20]; down[19] = 4; connection.Emit(down, false);
@@ -71,16 +73,22 @@ static class LifecycleChecks
         foreach (bool enabled in new[] { true, false })
         {
             connection = new FakeConnection(); runtime = new(new RecordingMouse(), connection);
-            var settings = new Settings { CalibrationSamples = 10, AutoReconnect = true };
+            var settings = new Settings { CalibrationDurationSeconds = .1, AutoReconnect = true };
             await runtime.ApplyAsync(settings); await runtime.ConnectAsync(settings);
+            connection.Emit(new byte[20], true);
+            await Task.Delay(120);
             for (int i = 0; i < 10; i++) connection.Emit(new byte[20], true);
             await runtime.CalibrateAsync();
+            connection.Emit(new byte[20], true);
+            await Task.Delay(120);
             for (int i = 0; i < 10; i++) connection.Emit(new byte[20], true);
             if (enabled) await runtime.ToggleAsync(); else await runtime.CalibrateAsync();
             connection.Lose();
             await WaitUntil(() => connection.Connects == 2 && runtime.Connected);
             await runtime.CalibrateAsync();
             Check(runtime.Snapshot.Enabled == enabled && !runtime.Snapshot.Calibrated, "Reconnect lost mouse state or skipped calibration");
+            connection.Emit(new byte[20], true);
+            await Task.Delay(120);
             for (int i = 0; i < 10; i++) connection.Emit(new byte[20], true);
             await WaitUntil(() => runtime.Snapshot.Calibrated);
             Check(runtime.Snapshot.Enabled == enabled, "Recalibration changed restored mouse state");

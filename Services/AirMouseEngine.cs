@@ -10,6 +10,7 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
     private Settings settings = new();
     private readonly double[] bias = new double[3], sum = new double[3], filtered = new double[3];
     private int sampleCount;
+    private double calibrationStarted, lastCalibrationSample;
     private double lastTime, lastSensor, remainingX, remainingY, scrollX, scrollY;
     private int? touchX, touchY;
     private bool left, right, oculus;
@@ -17,13 +18,15 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
     private bool oculusLongPressHandled;
     public bool Enabled { get; private set; }
     public bool Calibrated { get; private set; }
+    public double CalibrationProgress => Calibrated ? 1 : Math.Clamp((lastCalibrationSample - calibrationStarted) / settings.CalibrationDurationSeconds, 0, 1);
     public string Status => Calibrated ? (Enabled ? "鼠标控制已开启" : "校准完成，可以开启鼠标")
-        : $"静止校准：{sampleCount}/{settings.CalibrationSamples}" + (Enabled ? "（完成后继续控制）" : "");
+        : $"静止校准：{CalibrationProgress:P0} / {settings.CalibrationDurationSeconds:0.##} 秒" + (Enabled ? "（完成后继续控制）" : "");
     private double Now => clock?.Invoke() ?? Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
     public void Apply(Settings value) { Disable(); settings = value.Copy(); Calibrate(); }
     public void Calibrate()
     {
         ResetMotion(); Release(); Calibrated = false; sampleCount = 0;
+        calibrationStarted = lastCalibrationSample = Now;
         Array.Clear(bias); Array.Clear(sum); Array.Clear(filtered); lastTime = 0;
         InputDiagnostics.Write("calibration started; mouseEnabled=" + Enabled);
     }
@@ -103,8 +106,20 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
         for (int i = 0; i < 3; i++) gyro[i] = (values[i] + values[i + 3] + values[i + 6]) / 3.0;
         if (!Calibrated)
         {
+            double timestamp = Now;
+            // A gap in valid data must not count as time spent measuring drift.
+            if (sampleCount == 0 || timestamp - lastCalibrationSample > 0.25)
+            {
+                calibrationStarted = timestamp; sampleCount = 0; Array.Clear(sum);
+            }
+            lastCalibrationSample = timestamp;
             for (int i = 0; i < 3; i++) sum[i] += gyro[i];
-            if (++sampleCount >= settings.CalibrationSamples) { for (int i = 0; i < 3; i++) bias[i] = sum[i] / sampleCount; Calibrated = true; lastTime = Now; }
+            sampleCount++;
+            if (sampleCount >= 2 && timestamp - calibrationStarted + 1e-9 >= settings.CalibrationDurationSeconds)
+            {
+                for (int i = 0; i < 3; i++) bias[i] = sum[i] / sampleCount;
+                Calibrated = true; lastTime = timestamp;
+            }
             return;
         }
         for (int i = 0; i < 3; i++)

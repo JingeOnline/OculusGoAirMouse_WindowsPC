@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 
 namespace OculusGoAirMouse.Services;
 
-public sealed record EngineSnapshot(bool Enabled, bool Calibrated, string Status);
+public sealed record EngineSnapshot(bool Enabled, bool Calibrated, string Status, double CalibrationProgress = 0);
 
 // The UI must never be responsible for delivering mouse-up. All engine access,
 // native input calls and the watchdog are serialized on this independent thread.
@@ -79,7 +79,7 @@ public sealed class EngineWorker : IAsyncDisposable
     public Task StopSessionAsync() => Command(engine.Disable, invalidate: true, allowFrames: false);
     public Task ToggleAsync() => Command(() => { if (engine.Enabled) engine.Disable(); else engine.Enable(); });
 
-    private void Publish() => Volatile.Write(ref snapshot, new EngineSnapshot(engine.Enabled, engine.Calibrated, engine.Status));
+    private void Publish() => Volatile.Write(ref snapshot, new EngineSnapshot(engine.Enabled, engine.Calibrated, engine.Status, engine.CalibrationProgress));
     private void Fail(Exception error)
     {
         InputDiagnostics.Capture("input failure=" + error.Message);

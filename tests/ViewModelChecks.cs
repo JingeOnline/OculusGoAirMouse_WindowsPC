@@ -29,9 +29,15 @@ static class ViewModelChecks
         await vm.CalibrateCommand.ExecuteAsync(null);
         Check(!vm.IsCalibrated && runtime.Snapshot.Enabled && vm.ToggleMouseCommand.CanExecute(null), "Recalibration must preserve enable and permit stopping");
         vm.Settings.Fields[1].TextValue = "2.25";
+        vm.Settings.Fields[10].TextValue = .2.ToString();
         await vm.Settings.SaveCommand.ExecuteAsync(null);
         Check(store.Value.SensitivityX == 2.25 && runtime.Applied!.SensitivityX == 2.25, "Save/apply ViewModel command");
+        Check(store.Value.CalibrationDurationSeconds == .2 && runtime.Applied!.CalibrationDurationSeconds == .2, "Duration not saved/applied from settings page");
         int saves = store.Saves;
+        vm.Settings.Fields[10].TextValue = .09.ToString();
+        await vm.Settings.SaveCommand.ExecuteAsync(null);
+        Check(store.Saves == saves && vm.Settings.Message.Contains("0.1–3"), "Settings page accepted out-of-range duration");
+        vm.Settings.ReloadCommand.Execute(null);
         vm.Settings.Fields[3].TextValue = "invalid";
         await vm.Settings.SaveCommand.ExecuteAsync(null);
         Check(store.Saves == saves && vm.Settings.Message.Contains("陀螺仪死区"), "Invalid draft changed saved settings");

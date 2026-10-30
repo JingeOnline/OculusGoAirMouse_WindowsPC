@@ -6,16 +6,18 @@ using System.Runtime.InteropServices;
 int checks = 0;
 void Check(bool result, string message) { if (!result) throw new Exception(message); checks++; }
 var output = new FakeMouse();
-var engine = new AirMouseEngine(output);
+double now = 100;
+var engine = new AirMouseEngine(output, () => now);
 var config = new Settings();
 config.Validate();
 Check(config.SensitivityX == 1.75 && config.SensitivityY == 1.25 && config.DeadZone == 65, "Migrated movement values");
 Check(config.ScrollUnitsPerNotch == 30 && config.ScrollHorizontalInvert && !config.ScrollVerticalInvert, "Migrated scroll values");
 engine.Apply(config);
 try { engine.Enable(); throw new Exception("Enable before calibration accepted"); } catch (InvalidOperationException) { checks++; }
-for (int i = 0; i < 249; i++) engine.Gyro(new byte[20]);
+engine.Gyro(new byte[20]);
+for (int i = 0; i < 249; i++) { now += .005; engine.Gyro(new byte[20]); }
 Check(!engine.Calibrated, "Calibration completed too early");
-engine.Gyro(new byte[20]); Check(engine.Calibrated, "Calibration not completed"); engine.Enable();
+now += .005; engine.Gyro(new byte[20]); Check(engine.Calibrated, "Calibration not completed"); engine.Enable();
 byte[] Packet(int x, int y, byte buttons = 16)
 {
     var p = new byte[20]; BinaryPrimitives.WriteUInt16LittleEndian(p.AsSpan(14), (ushort)x); BinaryPrimitives.WriteUInt16LittleEndian(p.AsSpan(16), (ushort)y); p[19] = buttons; return p;

@@ -16,7 +16,7 @@ public partial class MainViewModel : ObservableObject
     private bool initialized;
     private Task? shutdown;
     private readonly Queue<string> logLines = new();
-    public string Title => "Oculus Go Air Mouse · 0.3.3";
+    public string Title => "Oculus Go Air Mouse · 0.3.4";
     public SettingsViewModel Settings { get; }
     [ObservableProperty] private string connectionStatus = "未连接";
     [ObservableProperty] private string engineStatus = "连接后请静置控制器进行校准。";
@@ -39,7 +39,7 @@ public partial class MainViewModel : ObservableObject
         if (loadError != null) Settings.Message = loadError;
         runtime.Progress += OnProgress; runtime.Faulted += OnFault;
         runtime.Disconnected += OnDisconnected; runtime.LinkChanged += OnLinkChanged;
-        Log("版本 0.3.3：支持可配置的自动重连，恢复原鼠标开关状态。");
+        Log("版本 0.3.4：支持校准时长设置和鼠标旁的校准进度环。");
     }
     partial void OnIsConnectingChanged(bool value) => RefreshCommands();
     partial void OnIsConnectedChanged(bool value) => RefreshCommands();

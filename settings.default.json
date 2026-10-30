@@ -10,11 +10,11 @@
   "YInvert": false,
   "Smoothing": 0.8,
   "MaxMove": 100,
-  "CalibrationSamples": 250,
   "ButtonTimeout": 3,
   "ScrollUnitsPerNotch": 30,
   "ScrollVerticalInvert": false,
   "ScrollHorizontalInvert": true,
   "ScanTimeoutSeconds": 15,
-  "ConnectTimeoutSeconds": 30
+  "ConnectTimeoutSeconds": 30,
+  "CalibrationDurationSeconds": 1.25
 }

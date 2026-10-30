@@ -10,9 +10,11 @@ static class WorkerChecks
         void Check(bool result, string message) { if (!result) throw new Exception(message); checks++; }
         var mouse = new RecordingMouse();
         var worker = new EngineWorker(mouse);
-        var settings = new Settings { CalibrationSamples = 10, ButtonTimeout = .25 };
+        var settings = new Settings { CalibrationDurationSeconds = .1, ButtonTimeout = .25 };
         await worker.ApplyAsync(settings);
         await worker.StartSessionAsync();
+        worker.PostFrame(new byte[20], true);
+        await Task.Delay(120);
         for (int i = 0; i < 10; i++) worker.PostFrame(new byte[20], true);
         await worker.ToggleAsync();
         Check(worker.Snapshot.Enabled && worker.Snapshot.Calibrated, "Worker calibration ordering");
@@ -20,6 +22,8 @@ static class WorkerChecks
         Check(worker.Snapshot.Enabled && !worker.Snapshot.Calibrated, "Worker manual calibration changed mouse switch");
         await worker.StartSessionAsync();
         Check(!worker.Snapshot.Enabled && !worker.Snapshot.Calibrated, "New session retained previous mouse enable");
+        worker.PostFrame(new byte[20], true);
+        await Task.Delay(120);
         for (int i = 0; i < 10; i++) worker.PostFrame(new byte[20], true);
         await worker.ToggleAsync();
 
