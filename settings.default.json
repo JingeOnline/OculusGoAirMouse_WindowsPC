@@ -19,6 +19,6 @@
   "CalibrationDurationSeconds": 1.25,
   "AutoCalibrateOnConnect": false,
   "AutoConnectOnStartup": true,
-  "ClickPressLockMilliseconds": 100,
-  "ClickReleaseLockMilliseconds": 100
+  "ClickPressLockMilliseconds": 20,
+  "ClickReleaseLockMilliseconds": 10
 }
