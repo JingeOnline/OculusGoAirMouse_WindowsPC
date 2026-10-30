@@ -11,7 +11,7 @@ static class CalibrationChecks
         double now = 100;
         var mouse = new RecordingMouse();
         var engine = new AirMouseEngine(mouse, () => now);
-        engine.Apply(new Settings { CalibrationDurationSeconds = .1 });
+        engine.Apply(new Settings { AutoCalibrateOnConnect = true, CalibrationDurationSeconds = .1 });
         void Samples(int number) { engine.Gyro(new byte[20]); for (int i = 0; i < number; i++) { now += .01; engine.Gyro(new byte[20]); } }
         void Buttons(byte buttons) { var data = new byte[20]; data[19] = buttons; engine.Sensor(data); }
         Samples(10); engine.Enable(); Buttons(4); engine.Calibrate();
@@ -57,11 +57,11 @@ static class CalibrationChecks
         now += .1; Buttons(1); now += .5; Buttons(0); now += .6; engine.CheckTimeout();
         Check(engine.Calibrated && mouse.Centers == centers + 7, "Released button retained long-press timer");
 
-        engine.Enable(); engine.Apply(new Settings { CalibrationDurationSeconds = .1 }); Samples(10);
+        engine.Enable(); engine.Apply(new Settings { AutoCalibrateOnConnect = true, CalibrationDurationSeconds = .1 }); Samples(10);
         Check(!engine.Enabled, "Settings application unexpectedly restored mouse control");
         foreach (double duration in new[] { .1, .5, 1.25, 3.0 })
         {
-            engine.Apply(new Settings { CalibrationDurationSeconds = duration });
+            engine.Apply(new Settings { AutoCalibrateOnConnect = true, CalibrationDurationSeconds = duration });
             engine.Gyro(new byte[20]);
             int steps = (int)Math.Round(duration * 200);
             for (int i = 1; i < steps; i++) { now += .005; engine.Gyro(new byte[20]); }
@@ -69,7 +69,7 @@ static class CalibrationChecks
             now += .005; engine.Gyro(new byte[20]);
             Check(engine.Calibrated && engine.CalibrationProgress == 1, "Timed calibration missed configured duration");
         }
-        engine.Apply(new Settings { CalibrationDurationSeconds = .1 });
+        engine.Apply(new Settings { AutoCalibrateOnConnect = true, CalibrationDurationSeconds = .1 });
         Samples(5); now += .5;
         engine.Gyro(new byte[1]);
         Check(!engine.Calibrated, "Missing data completed calibration");
@@ -78,12 +78,18 @@ static class CalibrationChecks
         Samples(10); Check(engine.Calibrated, "Calibration failed after data resumed");
         foreach (double invalid in new[] { .099, 3.001, double.NaN, double.PositiveInfinity })
         {
-            try { new Settings { CalibrationDurationSeconds = invalid }.Validate(); throw new Exception("Invalid duration accepted"); }
+            try { new Settings { AutoCalibrateOnConnect = true, CalibrationDurationSeconds = invalid }.Validate(); throw new Exception("Invalid duration accepted"); }
             catch (ArgumentException) { count++; }
         }
+        engine.Apply(new Settings { CalibrationDurationSeconds = .1 }); Samples(20);
+        Check(!engine.Calibrated && !engine.IsCalibrating && engine.CalibrationProgress == 0, "Default settings started calibration from gyro packets");
+        Buttons(1); now += 1.01; engine.CheckTimeout();
+        Check(engine.IsCalibrating, "Oculus did not start manual calibration with auto calibration disabled");
+        Buttons(0); Samples(10);
+        Check(engine.Calibrated && !engine.IsCalibrating, "Manual Oculus calibration did not complete");
         string path = Path.Combine(AppContext.BaseDirectory, "scratch", "calibration-settings.json");
-        SettingsStore.Save(new Settings { CalibrationDurationSeconds = .3 }, path);
-        Check(SettingsStore.Load(path).CalibrationDurationSeconds == .3, "Duration did not roundtrip through JSON");
+        SettingsStore.Save(new Settings { AutoCalibrateOnConnect = true, CalibrationDurationSeconds = .3 }, path);
+        Check(SettingsStore.Load(path).CalibrationDurationSeconds == .3 && SettingsStore.Load(path).AutoCalibrateOnConnect, "Duration did not roundtrip through JSON");
         File.WriteAllText(path, "{\"CalibrationSamples\":250,\"SensitivityX\":2.3}");
         var legacy = SettingsStore.Load(path);
         Check(legacy.CalibrationDurationSeconds == 1.25 && legacy.SensitivityX == 2.3, "Legacy settings lost existing values");

@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 
 namespace OculusGoAirMouse.Services;
 
-public sealed record EngineSnapshot(bool Enabled, bool Calibrated, string Status, double CalibrationProgress = 0);
+public sealed record EngineSnapshot(bool Enabled, bool Calibrated, string Status, double CalibrationProgress = 0, bool IsCalibrating = false);
 
 // The UI must never be responsible for delivering mouse-up. All engine access,
 // native input calls and the watchdog are serialized on this independent thread.
@@ -75,11 +75,11 @@ public sealed class EngineWorker : IAsyncDisposable
         return Command(() => engine.Apply(copy), invalidate: true);
     }
     public Task CalibrateAsync() => Command(engine.Calibrate, invalidate: true);
-    public Task StartSessionAsync(bool restoreMouse = false) => Command(() => { engine.Disable(); engine.RestoreEnabled(restoreMouse); engine.Calibrate(); }, invalidate: true, allowFrames: true);
-    public Task StopSessionAsync() => Command(engine.Disable, invalidate: true, allowFrames: false);
+    public Task StartSessionAsync(bool restoreMouse = false, bool autoCalibrate = false) => Command(() => engine.StartSession(restoreMouse, autoCalibrate), invalidate: true, allowFrames: true);
+    public Task StopSessionAsync() => Command(() => { engine.Disable(); engine.CancelCalibration(); }, invalidate: true, allowFrames: false);
     public Task ToggleAsync() => Command(() => { if (engine.Enabled) engine.Disable(); else engine.Enable(); });
 
-    private void Publish() => Volatile.Write(ref snapshot, new EngineSnapshot(engine.Enabled, engine.Calibrated, engine.Status, engine.CalibrationProgress));
+    private void Publish() => Volatile.Write(ref snapshot, new EngineSnapshot(engine.Enabled, engine.Calibrated, engine.Status, engine.CalibrationProgress, engine.IsCalibrating));
     private void Fail(Exception error)
     {
         InputDiagnostics.Capture("input failure=" + error.Message);

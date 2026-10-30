@@ -30,7 +30,7 @@ public partial class SettingsViewModel : ObservableObject
             ("XInvert", "水平光标反转"), ("YInvert", "垂直光标反转"), ("Smoothing", "光标平滑系数（越大响应越快）"),
             ("MaxMove", "单次最大光标位移（像素）"), ("CalibrationDurationSeconds", "校准时长（秒，0.1–3）"), ("ButtonTimeout", "按键数据超时（秒）"),
             ("ScrollUnitsPerNotch", "滚动阈值（越小滚动越快）"), ("ScrollVerticalInvert", "垂直滚动反转"), ("ScrollHorizontalInvert", "水平滚动反转"),
-            ("ScanTimeoutSeconds", "扫描超时（秒）"), ("ConnectTimeoutSeconds", "连接超时（秒）"), ("AutoReconnect", "蓝牙丢失后自动重连")];
+            ("ScanTimeoutSeconds", "扫描超时（秒）"), ("ConnectTimeoutSeconds", "连接超时（秒）"), ("AutoReconnect", "蓝牙丢失后自动重连"), ("AutoCalibrateOnConnect", "连接后自动校准")];
         Fields.Clear();
         foreach (var (name, label) in definitions) Fields.Add(new(name, label, current));
     }
@@ -43,7 +43,7 @@ public partial class SettingsViewModel : ObservableObject
             foreach (var field in Fields) field.WriteTo(candidate);
             candidate.Validate(); store.Save(candidate); current = candidate.Copy();
             await apply(candidate);
-            Message = "已保存并应用。鼠标已暂停；连接时请静置完成重新校准。";
+            Message = "已保存并应用。鼠标已暂停；请完成校准后再开启鼠标。";
         }
         catch (Exception ex) { Message = "保存失败：" + ex.Message; }
     }

@@ -3,6 +3,7 @@ namespace OculusGoAirMouse.Models;
 
 public sealed class Settings
 {
+    public bool AutoCalibrateOnConnect { get; set; } = false;
     public bool AutoReconnect { get; set; } = true;
     public string DeviceName { get; set; } = "OMVR-V190";
     public double SensitivityX { get; set; } = 1.75;

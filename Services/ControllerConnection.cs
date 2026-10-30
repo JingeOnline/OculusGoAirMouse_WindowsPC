@@ -82,7 +82,7 @@ public sealed class ControllerConnection : IControllerConnection
                 TimeSpan.FromSeconds(3));
             device.ConnectionStatusChanged += OnConnectionChanged;
             if (!Connected) throw new InvalidOperationException("控制器在连接期间断开，请重试。");
-            Progress?.Invoke("已连接，请保持控制器静止，完成校准后开启鼠标。");
+            Progress?.Invoke(settings.AutoCalibrateOnConnect ? "已连接，请保持控制器静止，完成校准后开启鼠标。" : "已连接，自动校准已关闭；请点击重新校准或长按 Oculus 1 秒。");
         }
         catch { Disconnect(); throw; }
         finally { if (ReferenceEquals(pending, cts)) pending = null; cts.Dispose(); }

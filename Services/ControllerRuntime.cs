@@ -69,7 +69,7 @@ public sealed class ControllerRuntime : IControllerRuntime
                     await pending.ConfigureAwait(false);
                     interrupted = false;
                     LinkChanged?.Invoke(true);
-                    OnProgress("自动重连成功，正在静置校准；完成后恢复原鼠标状态。");
+                    OnProgress(currentSettings.AutoCalibrateOnConnect ? "自动重连成功，正在静置校准；完成后恢复原鼠标状态。" : "自动重连成功，保留原鼠标状态；未自动执行校准。");
                     return;
                 }
                 catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { throw; }
@@ -106,7 +106,7 @@ public sealed class ControllerRuntime : IControllerRuntime
             if (manuallyStopped || retryTask is { IsCompleted: false }) return;
             if (!recovered && !interrupted) { resumeMouse = Snapshot.Enabled; interrupted = true; }
         }
-        Task safety = recovered ? engine.StartSessionAsync(currentSettings.AutoReconnect && resumeMouse) : engine.StopSessionAsync();
+        Task safety = recovered ? engine.StartSessionAsync(currentSettings.AutoReconnect && resumeMouse, currentSettings.AutoCalibrateOnConnect) : engine.StopSessionAsync();
         if (recovered) interrupted = false;
         _ = safety.ContinueWith(task =>
         {
@@ -150,7 +150,7 @@ public sealed class ControllerRuntime : IControllerRuntime
     {
         try
         {
-            await engine.StartSessionAsync(restoreMouse);
+            await engine.StartSessionAsync(restoreMouse, settings.AutoCalibrateOnConnect);
             cancellation.Token.ThrowIfCancellationRequested();
             ThrowIfDisposing();
             await connection.ConnectAsync(settings, cancellation.Token);

@@ -10,8 +10,8 @@ static class LifecycleChecks
         void Check(bool value, string message) { if (!value) throw new Exception(message); count++; }
         var mouse = new RecordingMouse(); var connection = new FakeConnection();
         var runtime = new ControllerRuntime(mouse, connection);
-        await runtime.ApplyAsync(new Settings { CalibrationDurationSeconds = .1 });
-        await runtime.ConnectAsync(new Settings());
+        await runtime.ApplyAsync(new Settings { AutoCalibrateOnConnect = true, CalibrationDurationSeconds = .1 });
+        await runtime.ConnectAsync(new Settings { AutoCalibrateOnConnect = true });
         Check(connection.Subscribers == 5 && runtime.Connected, "Runtime event wiring");
         connection.Emit(new byte[20], true);
         await Task.Delay(120);
@@ -73,7 +73,7 @@ static class LifecycleChecks
         foreach (bool enabled in new[] { true, false })
         {
             connection = new FakeConnection(); runtime = new(new RecordingMouse(), connection);
-            var settings = new Settings { CalibrationDurationSeconds = .1, AutoReconnect = true };
+            var settings = new Settings { AutoCalibrateOnConnect = true, CalibrationDurationSeconds = .1, AutoReconnect = true };
             await runtime.ApplyAsync(settings); await runtime.ConnectAsync(settings);
             connection.Emit(new byte[20], true);
             await Task.Delay(120);
@@ -120,6 +120,23 @@ static class LifecycleChecks
         await WaitUntil(() => connection.Connects == 2);
         await runtime.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(3));
         Check(!runtime.InputThreadAlive && connection.Subscribers == 0, "Shutdown during reconnect leaked resources");
+
+        connection = new FakeConnection(); runtime = new(new RecordingMouse(), connection);
+        var manualSettings = new Settings { CalibrationDurationSeconds = .1 };
+        Check(!manualSettings.AutoCalibrateOnConnect, "Automatic calibration must default to false");
+        await runtime.ApplyAsync(manualSettings); await runtime.ConnectAsync(manualSettings);
+        connection.Emit(new byte[20], true); await Task.Delay(150); connection.Emit(new byte[20], true);
+        await Task.Delay(60);
+        Check(!runtime.Snapshot.Calibrated && !runtime.Snapshot.IsCalibrating && runtime.Snapshot.CalibrationProgress == 0, "Disabled connection calibration still consumed frames");
+        Check(!runtime.Snapshot.Enabled, "Manual session enabled mouse before calibration");
+        await runtime.CalibrateAsync();
+        Check(runtime.Snapshot.IsCalibrating, "Manual calibration did not start while auto calibration disabled");
+        connection.Emit(new byte[20], true); await Task.Delay(120); connection.Emit(new byte[20], true);
+        await WaitUntil(() => runtime.Snapshot.Calibrated);
+        await runtime.ToggleAsync(); connection.Lose();
+        await WaitUntil(() => connection.Connects == 2 && runtime.Connected);
+        Check(runtime.Snapshot.Enabled && runtime.Snapshot.Calibrated && !runtime.Snapshot.IsCalibrating, "Reconnect without auto calibration did not retain completed bias and mouse state");
+        await runtime.DisposeAsync();
 
         string path = Path.Combine(AppContext.BaseDirectory, "scratch", "diagnostic-close.log");
         var writer = new DiagnosticWriter(path);

@@ -50,7 +50,7 @@ static class Smoke
                 else if (stage == 2)
                 {
                     Check(!windows.Single().IsVisible, "Completion did not hide overlay");
-                    fake.Snapshot = new(false, false, "calibrating", .75);
+                    fake.Snapshot = new(false, false, "calibrating", .75, true);
                 }
                 else if (stage == 3)
                 {
@@ -60,6 +60,11 @@ static class Smoke
                 else if (stage == 4)
                 {
                     Check(!windows.Single().IsVisible, "Disconnect left overlay visible");
+                    fake.Connected = true; fake.Snapshot = new(false, false, "waiting for manual calibration");
+                }
+                else if (stage == 5)
+                {
+                    Check(!windows.Single().IsVisible, "Waiting for manual calibration showed progress ring");
                     presenter.Dispose(); presenter.Dispose();
                     Check(app.Windows.Count == 0, "Dispose left a window open");
                     Console.WriteLine($"PASS: {count} native overlay visibility, cursor position, topmost, click-through, focus and disposal checks.");
@@ -80,7 +85,7 @@ static class Smoke
     [DllImport("user32.dll")] private static extern nint WindowFromPoint(Point point);
     private sealed class FakeRuntime : IControllerRuntime
     {
-        public EngineSnapshot Snapshot { get; set; } = new(false, false, "calibrating", .6);
+        public EngineSnapshot Snapshot { get; set; } = new(false, false, "calibrating", .6, true);
         public bool Connected { get; set; }
         public event Action<string>? Progress { add {} remove {} }
         public event Action<Exception>? Faulted { add {} remove {} }

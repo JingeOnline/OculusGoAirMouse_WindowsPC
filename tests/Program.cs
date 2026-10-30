@@ -8,7 +8,7 @@ void Check(bool result, string message) { if (!result) throw new Exception(messa
 var output = new FakeMouse();
 double now = 100;
 var engine = new AirMouseEngine(output, () => now);
-var config = new Settings();
+var config = new Settings { AutoCalibrateOnConnect = true };
 config.Validate();
 Check(config.SensitivityX == 1.75 && config.SensitivityY == 1.25 && config.DeadZone == 65, "Migrated movement values");
 Check(config.ScrollUnitsPerNotch == 30 && config.ScrollHorizontalInvert && !config.ScrollVerticalInvert, "Migrated scroll values");

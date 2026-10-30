@@ -25,7 +25,7 @@ public sealed class WpfCalibrationOverlay : IDisposable
     private void Tick(object? sender, EventArgs e)
     {
         var snapshot = runtime.Snapshot;
-        if (disposed || !runtime.Connected || snapshot.Calibrated)
+        if (disposed || !runtime.Connected || !snapshot.IsCalibrating)
         {
             window?.Hide();
             return;
