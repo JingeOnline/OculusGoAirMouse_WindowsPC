@@ -68,6 +68,51 @@ static class LifecycleChecks
         await Task.WhenAll(manual, closing).WaitAsync(TimeSpan.FromSeconds(3));
         Check(connection.Disconnects == 1 && !runtime.InputThreadAlive, "Concurrent shutdown repeated native cleanup");
 
+        foreach (bool enabled in new[] { true, false })
+        {
+            connection = new FakeConnection(); runtime = new(new RecordingMouse(), connection);
+            var settings = new Settings { CalibrationSamples = 10, AutoReconnect = true };
+            await runtime.ApplyAsync(settings); await runtime.ConnectAsync(settings);
+            for (int i = 0; i < 10; i++) connection.Emit(new byte[20], true);
+            await runtime.CalibrateAsync();
+            for (int i = 0; i < 10; i++) connection.Emit(new byte[20], true);
+            if (enabled) await runtime.ToggleAsync(); else await runtime.CalibrateAsync();
+            connection.Lose();
+            await WaitUntil(() => connection.Connects == 2 && runtime.Connected);
+            await runtime.CalibrateAsync();
+            Check(runtime.Snapshot.Enabled == enabled && !runtime.Snapshot.Calibrated, "Reconnect lost mouse state or skipped calibration");
+            for (int i = 0; i < 10; i++) connection.Emit(new byte[20], true);
+            await WaitUntil(() => runtime.Snapshot.Calibrated);
+            Check(runtime.Snapshot.Enabled == enabled, "Recalibration changed restored mouse state");
+            connection.BlockConnect = true; connection.Lose();
+            await WaitUntil(() => connection.Connects == 3);
+            await runtime.DisconnectAsync("manual").WaitAsync(TimeSpan.FromSeconds(3));
+            Check(!runtime.Connected && !runtime.Snapshot.Enabled, "Manual stop did not cancel retry");
+            await runtime.DisposeAsync();
+        }
+        connection = new FakeConnection(); runtime = new(new RecordingMouse(), connection);
+        await runtime.ConnectAsync(new Settings { AutoReconnect = false });
+        int lost = 0; runtime.Disconnected += () => lost++;
+        connection.Lose();
+        Check(lost == 1 && connection.Connects == 1, "Disabled auto reconnect still retried");
+        await runtime.DisposeAsync();
+
+        connection = new FakeConnection(); runtime = new(new RecordingMouse(), connection);
+        await runtime.ConnectAsync(new()); connection.FailConnects = 1;
+        connection.Lose(); connection.Lose();
+        await WaitUntil(() => connection.Connects >= 3 && runtime.Connected);
+        Check(connection.Connects == 3, "Failed retry did not repeat or duplicate loss started competing loops");
+        connection.BlockConnect = true; connection.Lose();
+        await WaitUntil(() => connection.Connects == 4);
+        await runtime.ApplyAsync(new Settings { AutoReconnect = false }).WaitAsync(TimeSpan.FromSeconds(3));
+        Check(!runtime.Connected, "Disabling auto reconnect did not cancel pending scan");
+        await runtime.DisposeAsync();
+        connection = new FakeConnection(); runtime = new(new RecordingMouse(), connection);
+        await runtime.ConnectAsync(new()); connection.BlockConnect = true; connection.Lose();
+        await WaitUntil(() => connection.Connects == 2);
+        await runtime.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(3));
+        Check(!runtime.InputThreadAlive && connection.Subscribers == 0, "Shutdown during reconnect leaked resources");
+
         string path = Path.Combine(AppContext.BaseDirectory, "scratch", "diagnostic-close.log");
         var writer = new DiagnosticWriter(path);
         writer.Write("first"); writer.Write("last");
@@ -78,6 +123,11 @@ static class LifecycleChecks
         await Task.WhenAll(InputDiagnostics.ShutdownAsync(), InputDiagnostics.ShutdownAsync());
         Check(InputDiagnostics.IsStopped, "Diagnostic timer/tasks still running after shutdown");
         return count;
+    }
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!condition()) await Task.Delay(10, timeout.Token);
     }
     private sealed class RecordingMouse : IMouseOutput
     {
@@ -95,7 +145,8 @@ static class LifecycleChecks
     {
         public bool Connected { get; private set; }
         public bool BlockConnect, FailNotifications, FailDisconnect;
-        public int NotificationStops, Disconnects;
+        public int NotificationStops, Disconnects, Connects, FailConnects;
+        public void Lose() { Connected = false; LinkInterrupted?.Invoke(); Disconnected?.Invoke(); }
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource? NotificationGate;
         public event Action<string>? Progress;
@@ -107,7 +158,9 @@ static class LifecycleChecks
             + (Disconnected?.GetInvocationList().Length ?? 0) + (LinkInterrupted?.GetInvocationList().Length ?? 0) + (LinkRecovered?.GetInvocationList().Length ?? 0);
         public async Task ConnectAsync(Settings settings, CancellationToken cancellationToken = default)
         {
+            Interlocked.Increment(ref Connects);
             Started.TrySetResult();
+            if (FailConnects > 0) { FailConnects--; throw new TimeoutException("simulated scan failure"); }
             if (BlockConnect) await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested(); Connected = true;
         }

@@ -75,7 +75,7 @@ public sealed class EngineWorker : IAsyncDisposable
         return Command(() => engine.Apply(copy), invalidate: true);
     }
     public Task CalibrateAsync() => Command(engine.Calibrate, invalidate: true);
-    public Task StartSessionAsync() => Command(() => { engine.Disable(); engine.Calibrate(); }, invalidate: true, allowFrames: true);
+    public Task StartSessionAsync(bool restoreMouse = false) => Command(() => { engine.Disable(); engine.RestoreEnabled(restoreMouse); engine.Calibrate(); }, invalidate: true, allowFrames: true);
     public Task StopSessionAsync() => Command(engine.Disable, invalidate: true, allowFrames: false);
     public Task ToggleAsync() => Command(() => { if (engine.Enabled) engine.Disable(); else engine.Enable(); });
 

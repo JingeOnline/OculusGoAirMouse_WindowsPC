@@ -1,4 +1,5 @@
 {
+  "AutoReconnect": true,
   "DeviceName": "OMVR-V190",
   "SensitivityX": 1.75,
   "SensitivityY": 1.25,

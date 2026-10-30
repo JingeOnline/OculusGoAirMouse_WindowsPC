@@ -16,7 +16,7 @@ public partial class MainViewModel : ObservableObject
     private bool initialized;
     private Task? shutdown;
     private readonly Queue<string> logLines = new();
-    public string Title => "Oculus Go Air Mouse · 0.3.2";
+    public string Title => "Oculus Go Air Mouse · 0.3.3";
     public SettingsViewModel Settings { get; }
     [ObservableProperty] private string connectionStatus = "未连接";
     [ObservableProperty] private string engineStatus = "连接后请静置控制器进行校准。";
@@ -39,7 +39,7 @@ public partial class MainViewModel : ObservableObject
         if (loadError != null) Settings.Message = loadError;
         runtime.Progress += OnProgress; runtime.Faulted += OnFault;
         runtime.Disconnected += OnDisconnected; runtime.LinkChanged += OnLinkChanged;
-        Log("版本 0.3.2：重新校准保留鼠标开关；Oculus 长按 1 秒重新校准。");
+        Log("版本 0.3.3：支持可配置的自动重连，恢复原鼠标开关状态。");
     }
     partial void OnIsConnectingChanged(bool value) => RefreshCommands();
     partial void OnIsConnectedChanged(bool value) => RefreshCommands();
@@ -82,7 +82,7 @@ public partial class MainViewModel : ObservableObject
     }
     private void OnProgress(string message) => ui.Post(() =>
     {
-        if (!IsClosing && (IsConnecting || runtime.Connected)) { ConnectionStatus = message; Log(message); }
+        if (!IsClosing && (IsConnecting || IsRecovering || runtime.Connected)) { ConnectionStatus = message; Log(message); }
     });
     private void OnFault(Exception error) => PostStop("鼠标控制已停止：" + error.Message, false);
     private void OnDisconnected() => PostStop("控制器已断开，请唤醒后重新连接。", true);
@@ -95,7 +95,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (IsClosing) return;
         IsRecovering = !recovered;
-        ConnectionStatus = recovered ? "蓝牙已恢复，请静置重新校准，再开启鼠标。" : "蓝牙短暂中断，已释放按键，正在等待恢复…";
+        ConnectionStatus = recovered ? "蓝牙已恢复，请静置完成校准。" : "蓝牙短暂中断，已释放按键，正在等待恢复…";
         Log(ConnectionStatus); Pulse();
     });
     public void NotifyCaptionCommand(uint command) => ui.Post(() =>

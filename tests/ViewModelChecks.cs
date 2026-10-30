@@ -11,7 +11,7 @@ static class ViewModelChecks
         var runtime = new FakeRuntime(); var store = new FakeStore(); var ui = new FakeUi();
         var vm = new MainViewModel(runtime, store, ui);
         Check(vm.ConnectCommand.CanExecute(null) && !vm.DisconnectCommand.CanExecute(null) && !vm.ToggleMouseCommand.CanExecute(null), "Initial command availability");
-        Check(vm.Settings.Fields.Count == 17 && vm.Settings.Fields[1].TextValue == 1.75.ToString(), "Bound settings migration");
+        Check(vm.Settings.Fields.Count == 18 && vm.Settings.Fields[1].TextValue == 1.75.ToString(), "Bound settings migration");
         await vm.InitializeAsync();
         Check(runtime.Applied!.DeadZone == 65 && runtime.ApplyCount == 1, "Initialization applies saved settings");
         await vm.InitializeAsync(); Check(runtime.ApplyCount == 1, "Duplicate initialization");

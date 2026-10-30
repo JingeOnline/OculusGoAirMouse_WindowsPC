@@ -30,7 +30,7 @@ public partial class SettingsViewModel : ObservableObject
             ("XInvert", "水平光标反转"), ("YInvert", "垂直光标反转"), ("Smoothing", "光标平滑系数（越大响应越快）"),
             ("MaxMove", "单次最大光标位移（像素）"), ("CalibrationSamples", "校准样本数"), ("ButtonTimeout", "按键数据超时（秒）"),
             ("ScrollUnitsPerNotch", "滚动阈值（越小滚动越快）"), ("ScrollVerticalInvert", "垂直滚动反转"), ("ScrollHorizontalInvert", "水平滚动反转"),
-            ("ScanTimeoutSeconds", "扫描超时（秒）"), ("ConnectTimeoutSeconds", "连接超时（秒）")];
+            ("ScanTimeoutSeconds", "扫描超时（秒）"), ("ConnectTimeoutSeconds", "连接超时（秒）"), ("AutoReconnect", "蓝牙丢失后自动重连")];
         Fields.Clear();
         foreach (var (name, label) in definitions) Fields.Add(new(name, label, current));
     }

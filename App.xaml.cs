@@ -10,7 +10,7 @@ public partial class App : Application
         var output = new MouseOutput();
         var viewModel = new MainViewModel(new ControllerRuntime(output, new ControllerConnection()), new JsonSettingsStore(), new WpfUiScheduler(Dispatcher));
         MainWindow = new MainWindow(viewModel, output);
-        InputDiagnostics.Write("start version=0.3.2 MVVM");
+        InputDiagnostics.Write("start version=0.3.3 MVVM");
         MainWindow.Show();
     }
     protected override void OnExit(ExitEventArgs e)

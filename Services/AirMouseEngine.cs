@@ -27,6 +27,7 @@ public sealed class AirMouseEngine(IMouseOutput output, Func<double>? clock = nu
         Array.Clear(bias); Array.Clear(sum); Array.Clear(filtered); lastTime = 0;
         InputDiagnostics.Write("calibration started; mouseEnabled=" + Enabled);
     }
+    internal void RestoreEnabled(bool enabled) { Enabled = enabled; ResetMotion(); }
     public void Enable() { if (!Calibrated) throw new InvalidOperationException("请先完成静止校准。"); Enabled = true; ResetMotion(); }
     public void Disable() { Enabled = false; ResetMotion(); Release(); ResetOculusGesture(); }
     private void ResetMotion() { remainingX = remainingY = 0; ResetScroll(); }
