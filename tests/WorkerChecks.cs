@@ -43,6 +43,7 @@ static class WorkerChecks
         Check(mouse.Threads.Count == count && mouse.Centers == 0, "Stopped session accepted stale frames");
 
         await worker.DisposeAsync();
+        Check(!worker.IsRunning, "Dispose returned before input thread exited");
         worker.PostFrame(Buttons(4), false);
         Check(mouse.Threads.Count == count, "Disposed worker accepted frames");
         return checks;

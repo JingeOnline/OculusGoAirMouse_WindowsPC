@@ -4,6 +4,6 @@
   <ItemGroup>
     <Compile Include="../Models/*.cs" Link="Models/%(Filename)%(Extension)"/>
     <Compile Include="../ViewModels/*.cs" Link="ViewModels/%(Filename)%(Extension)"/>
-    <Compile Include="../Services/*.cs" Exclude="../Services/ControllerConnection.cs;../Services/ControllerRuntime.cs;../Services/WpfUiScheduler.cs" Link="Services/%(Filename)%(Extension)"/>
+    <Compile Include="../Services/*.cs" Exclude="../Services/ControllerConnection.cs;../Services/WpfUiScheduler.cs" Link="Services/%(Filename)%(Extension)"/>
   </ItemGroup>
 </Project>

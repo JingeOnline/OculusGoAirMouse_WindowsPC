@@ -6,7 +6,7 @@ using Windows.Storage.Streams;
 
 namespace OculusGoAirMouse.Services;
 
-public sealed class ControllerConnection
+public sealed class ControllerConnection : IControllerConnection
 {
     private static readonly Guid ServiceId = new("81265652-3692-ae93-e711-270f223c83b3");
     private static readonly Guid GyroId = new("8126beef-3692-ae93-e711-270f223c83b3");
@@ -24,20 +24,29 @@ public sealed class ControllerConnection
     public event Action? LinkRecovered;
     public bool Connected => device?.ConnectionStatus == BluetoothConnectionStatus.Connected && gyro != null && sensor != null;
 
-    public async Task ConnectAsync(Settings settings)
+    public async Task ConnectAsync(Settings settings, CancellationToken cancellationToken = default)
     {
         Disconnect();
-        var cts = pending = new CancellationTokenSource();
+        var cts = pending = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         try
         {
+            cts.Token.ThrowIfCancellationRequested();
             Progress?.Invoke("正在搜索控制器，请按 Trigger 唤醒…");
             var found = new TaskCompletionSource<ulong>(TaskCreationOptions.RunContinuationsAsynchronously);
             var watcher = new BluetoothLEAdvertisementWatcher { ScanningMode = BluetoothLEScanningMode.Active };
-            watcher.Received += (_, e) => { if (e.Advertisement.LocalName == settings.DeviceName) found.TrySetResult(e.BluetoothAddress); };
-            watcher.Stopped += (_, e) => { if (e.Error != BluetoothError.Success) found.TrySetException(new InvalidOperationException($"蓝牙扫描停止：{e.Error}，请检查蓝牙开关。")); };
+            void Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs e)
+            { if (e.Advertisement.LocalName == settings.DeviceName) found.TrySetResult(e.BluetoothAddress); }
+            void Stopped(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementWatcherStoppedEventArgs e)
+            { if (e.Error != BluetoothError.Success) found.TrySetException(new InvalidOperationException($"蓝牙扫描停止：{e.Error}，请检查蓝牙开关。")); }
+            watcher.Received += Received;
+            watcher.Stopped += Stopped;
             ulong address;
             try { watcher.Start(); address = await found.Task.WaitAsync(TimeSpan.FromSeconds(settings.ScanTimeoutSeconds), cts.Token); }
-            finally { watcher.Stop(); }
+            finally
+            {
+                try { watcher.Stop(); }
+                finally { watcher.Received -= Received; watcher.Stopped -= Stopped; InputDiagnostics.Write("scan stopped; handlers removed"); }
+            }
             cts.CancelAfter(TimeSpan.FromSeconds(settings.ConnectTimeoutSeconds));
             Progress?.Invoke("已发现控制器，正在建立连接并读取服务…");
             device = await BluetoothLEDevice.FromBluetoothAddressAsync(address).AsTask(cts.Token) ?? throw new InvalidOperationException("无法访问控制器，请检查 Windows 蓝牙配对。");
@@ -97,23 +106,54 @@ public sealed class ControllerConnection
     }
     private void OnSessionStatusChanged(GattSession sender, GattSessionStatusChangedEventArgs args)
         => InputDiagnostics.Capture($"GATT status={args.Status} error={args.Error}");
+    public void CancelPending() => pending?.Cancel();
+    public async Task StopNotificationsAsync()
+    {
+        var currentGyro = gyro; var currentSensor = sensor;
+        if (currentGyro != null) currentGyro.ValueChanged -= OnGyro;
+        if (currentSensor != null) currentSensor.ValueChanged -= OnSensor;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        foreach (var characteristic in new[] { currentGyro, currentSensor })
+        {
+            if (characteristic == null || device?.ConnectionStatus != BluetoothConnectionStatus.Connected) continue;
+            try
+            {
+                var status = await characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
+                    GattClientCharacteristicConfigurationDescriptorValue.None).AsTask(timeout.Token);
+                InputDiagnostics.Write("notification stop=" + status);
+            }
+            catch (Exception ex) { InputDiagnostics.Write("notification stop error=" + ex.Message); }
+        }
+    }
     public void Disconnect()
     {
         InputDiagnostics.Write("disposing GATT session");
-        lossMonitor?.Dispose(); lossMonitor = null;
-        pending?.Cancel();
-        if (device != null) device.ConnectionStatusChanged -= OnConnectionChanged;
-        if (gyro != null) gyro.ValueChanged -= OnGyro;
-        if (sensor != null) sensor.ValueChanged -= OnSensor;
+        // Clear owned references first. One native cleanup failure must not skip
+        // the remaining session, service or device disposal steps.
+        var oldMonitor = lossMonitor; lossMonitor = null;
+        var oldSession = session; session = null;
+        var oldService = service; service = null;
+        var oldDevice = device; device = null;
+        var oldGyro = gyro; var oldSensor = sensor;
         gyro = sensor = null;
-        if (session != null)
+        void Clean(string name, Action action)
         {
-            session.SessionStatusChanged -= OnSessionStatusChanged;
-            try { if (session.CanMaintainConnection) session.MaintainConnection = false; }
-            catch (Exception ex) { InputDiagnostics.Write("GATT session cleanup=" + ex.Message); }
-            finally { session.Dispose(); session = null; }
+            try { action(); }
+            catch (Exception ex) { InputDiagnostics.Write($"cleanup {name} error={ex.Message}"); }
         }
-        service?.Dispose(); service = null;
-        device?.Dispose(); device = null;
+        Clean("loss monitor", () => oldMonitor?.Dispose());
+        Clean("cancel connection", CancelPending);
+        if (oldDevice != null) Clean("device handler", () => oldDevice.ConnectionStatusChanged -= OnConnectionChanged);
+        if (oldGyro != null) Clean("gyro handler", () => oldGyro.ValueChanged -= OnGyro);
+        if (oldSensor != null) Clean("sensor handler", () => oldSensor.ValueChanged -= OnSensor);
+        if (oldSession != null)
+        {
+            Clean("session handler", () => oldSession.SessionStatusChanged -= OnSessionStatusChanged);
+            Clean("maintain connection", () => { if (oldSession.CanMaintainConnection) oldSession.MaintainConnection = false; });
+            Clean("session", oldSession.Dispose);
+        }
+        if (oldService != null) Clean("service", oldService.Dispose);
+        if (oldDevice != null) Clean("device", oldDevice.Dispose);
+        InputDiagnostics.Write("GATT references released");
     }
 }

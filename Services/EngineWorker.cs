@@ -11,6 +11,8 @@ public sealed class EngineWorker : IAsyncDisposable
 {
     private readonly BlockingCollection<Action> queue = new();
     private readonly AirMouseEngine engine;
+    private readonly Thread workerThread;
+    public bool IsRunning => workerThread.IsAlive;
     private readonly TaskCompletionSource stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly object lifecycle = new();
     private bool acceptingFrames, stopping;
@@ -22,7 +24,8 @@ public sealed class EngineWorker : IAsyncDisposable
     public EngineWorker(IMouseOutput output)
     {
         engine = new(output);
-        new Thread(Run) { IsBackground = true, Name = "Oculus mouse input" }.Start();
+        workerThread = new Thread(Run) { IsBackground = true, Name = "Oculus mouse input" };
+        workerThread.Start();
     }
 
     public void PostFrame(byte[] data, bool gyro)
@@ -105,9 +108,12 @@ public sealed class EngineWorker : IAsyncDisposable
         }
         finally
         {
-            try { engine.Disable(); stopped.TrySetResult(); }
-            catch (Exception ex) { stopped.TrySetException(ex); }
-            queue.Dispose();
+            Exception? error = null;
+            try { engine.Disable(); Publish(); }
+            catch (Exception ex) { error = ex; }
+            finally { queue.Dispose(); Faulted = null; }
+            InputDiagnostics.Write("input worker stopped; release=" + (error == null ? "complete" : "failed"));
+            if (error == null) stopped.TrySetResult(); else stopped.TrySetException(error);
         }
     }
     public async ValueTask DisposeAsync()
@@ -120,6 +126,7 @@ public sealed class EngineWorker : IAsyncDisposable
                 queue.CompleteAdding();
             }
         }
-        await stopped.Task.ConfigureAwait(false);
+        try { await stopped.Task.ConfigureAwait(false); }
+        finally { workerThread.Join(); }
     }
 }

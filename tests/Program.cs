@@ -45,6 +45,7 @@ checks += await WorkerChecks.RunAsync();
 checks += CaptionChecks.Run();
 checks += await ConnectionChecks.RunAsync();
 checks += await ViewModelChecks.RunAsync();
+checks += await LifecycleChecks.RunAsync();
 Console.WriteLine($"PASS: {checks} migration, input-thread independence, watchdog, calibration, scrolling, button, configuration and native-layout checks.");
 
 sealed class FakeMouse : IMouseOutput

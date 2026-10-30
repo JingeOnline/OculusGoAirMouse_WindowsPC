@@ -14,8 +14,9 @@ public partial class MainViewModel : ObservableObject
     private Settings current;
     private IDisposable? ticker;
     private bool initialized;
+    private Task? shutdown;
     private readonly Queue<string> logLines = new();
-    public string Title => "Oculus Go Air Mouse · 0.3.0";
+    public string Title => "Oculus Go Air Mouse · 0.3.1";
     public SettingsViewModel Settings { get; }
     [ObservableProperty] private string connectionStatus = "未连接";
     [ObservableProperty] private string engineStatus = "连接后请静置控制器进行校准。";
@@ -37,7 +38,7 @@ public partial class MainViewModel : ObservableObject
         if (loadError != null) Settings.Message = loadError;
         runtime.Progress += OnProgress; runtime.Faulted += OnFault;
         runtime.Disconnected += OnDisconnected; runtime.LinkChanged += OnLinkChanged;
-        Log("版本 0.3.0：MVVM；蓝牙会话保持和标题栏兼容处理已启用。");
+        Log("版本 0.3.1：已完善资源退出清理。");
     }
     partial void OnIsConnectingChanged(bool value) => RefreshCommands();
     partial void OnIsConnectedChanged(bool value) => RefreshCommands();
@@ -135,10 +136,11 @@ public partial class MainViewModel : ObservableObject
     {
         current = candidate.Copy(); await runtime.ApplyAsync(current); Pulse(); Log("设置已保存。");
     }
-    public async Task ShutdownAsync()
+    public Task ShutdownAsync() => shutdown ??= ShutdownCoreAsync();
+    private async Task ShutdownCoreAsync()
     {
-        if (IsClosing) return;
         IsClosing = true; Settings.IsAvailable = false;
+        elapsed.Stop();
         ticker?.Dispose(); ticker = null;
         runtime.Progress -= OnProgress; runtime.Faulted -= OnFault;
         runtime.Disconnected -= OnDisconnected; runtime.LinkChanged -= OnLinkChanged;

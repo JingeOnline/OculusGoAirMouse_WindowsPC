@@ -23,7 +23,7 @@ public partial class MainWindow : Window
         StateChanged += (_, _) => { output.RefreshCaptionRegions(); InputDiagnostics.Capture("window state=" + WindowState); };
         output.CaptionCommandPosted += viewModel.NotifyCaptionCommand;
         Loaded += async (_, _) => { output.RefreshCaptionRegions(); await viewModel.InitializeAsync(); };
-        Closed += (_, _) => output.CaptionCommandPosted -= viewModel.NotifyCaptionCommand;
+        Closed += (_, _) => { output.CaptionCommandPosted -= viewModel.NotifyCaptionCommand; output.SetMainWindowHandle(0); };
     }
     private void OnLogTextChanged(object sender, TextChangedEventArgs e) => ((TextBox)sender).ScrollToEnd();
     private async void OnClosing(object? sender, CancelEventArgs e)

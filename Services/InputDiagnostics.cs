@@ -1,42 +1,36 @@
 using System.Diagnostics;
 using System.IO;
-using System.Threading.Channels;
 
 namespace OculusGoAirMouse.Services;
 
-// Bounded, asynchronous diagnostic output. The input thread never waits for disk
-// or the UI; no packet contents, addresses or desktop activity are recorded.
 public static class InputDiagnostics
 {
-    private static readonly Channel<string> lines = Channel.CreateBounded<string>(new BoundedChannelOptions(256) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true });
+    private static readonly DiagnosticWriter writer = new(FilePath);
+    private static readonly CancellationTokenSource lifetime = new();
+    private static readonly Task healthTask = Task.Run(HealthLoopAsync);
+    private static readonly object shutdownGate = new();
+    private static Task? shutdown;
+    private static int stopping;
     private static long received, processed, lastReceived, lastProcessed, lastUi, captureUntil;
     private static int receivedButtons = -1, processedButtons = -1;
     public static string FilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OculusGoAirMouse", "input-diagnostics.log");
+    public static bool IsStopped => shutdown?.IsCompletedSuccessfully == true;
     private static double Age(long time) => time == 0 ? -1 : Stopwatch.GetElapsedTime(time).TotalMilliseconds;
-    static InputDiagnostics()
+    private static async Task HealthLoopAsync()
     {
-        _ = Task.Run(async () =>
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
         {
-            try
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-                await using var writer = new StreamWriter(FilePath, append: false) { AutoFlush = true };
-                int characters = 0;
-                await foreach (string line in lines.Reader.ReadAllAsync())
-                    if (characters < 1_000_000) { await writer.WriteLineAsync(line); characters += line.Length + 2; }
-            }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
-        });
-        _ = Task.Run(async () =>
-        {
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-            while (await timer.WaitForNextTickAsync())
+            while (await timer.WaitForNextTickAsync(lifetime.Token).ConfigureAwait(false))
                 if (Stopwatch.GetTimestamp() < Volatile.Read(ref captureUntil))
                     Write($"health received={Interlocked.Read(ref received)} processed={Interlocked.Read(ref processed)} receiveAgeMs={Age(Interlocked.Read(ref lastReceived)):F0} processAgeMs={Age(Interlocked.Read(ref lastProcessed)):F0} uiAgeMs={Age(Interlocked.Read(ref lastUi)):F0}");
-        });
+        }
+        catch (OperationCanceledException) { }
     }
-    public static void Write(string message) => lines.Writer.TryWrite($"{DateTimeOffset.Now:HH:mm:ss.fff} thread={Environment.CurrentManagedThreadId} {message}");
+    public static void Write(string message)
+    {
+        if (Volatile.Read(ref stopping) == 0) writer.Write($"{DateTimeOffset.Now:HH:mm:ss.fff} thread={Environment.CurrentManagedThreadId} {message}");
+    }
     public static void Capture(string message)
     {
         Interlocked.Exchange(ref captureUntil, Stopwatch.GetTimestamp() + 10 * Stopwatch.Frequency);
@@ -51,5 +45,18 @@ public static class InputDiagnostics
         int buttons = data[19] & 7;
         int before = isProcessed ? Interlocked.Exchange(ref processedButtons, buttons) : Interlocked.Exchange(ref receivedButtons, buttons);
         if (before != buttons) Write($"{(isProcessed ? "processed" : "received")} buttons={buttons}");
+    }
+    public static Task ShutdownAsync()
+    {
+        lock (shutdownGate) return shutdown ??= ShutdownCoreAsync();
+    }
+    private static async Task ShutdownCoreAsync()
+    {
+        Write("diagnostics shutdown complete");
+        Interlocked.Exchange(ref stopping, 1);
+        lifetime.Cancel();
+        await healthTask.ConfigureAwait(false);
+        await writer.DisposeAsync().ConfigureAwait(false);
+        lifetime.Dispose();
     }
 }
