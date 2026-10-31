@@ -1,6 +1,10 @@
 # Oculus Go Air Mouse
 
-使用 Oculus Go 控制器操作 Windows 鼠标的桌面应用。当前版本 **0.4.3**，基于 **.NET 10、WPF Fluent Theme 和 CommunityToolkit.Mvvm 8.4.2**，采用 MVVM 架构，界面跟随系统明暗主题。
+使用 Oculus Go 控制器操作 Windows 鼠标的桌面应用。当前版本 **0.4.4**，基于 **.NET 10、WPF Fluent Theme 和 CommunityToolkit.Mvvm 8.4.2**，采用 MVVM 架构，界面跟随系统明暗主题。
+
+![Oculus Go 控制器外观](https://s3files.core77.com/blog/images/922267_90183_87578_86lxkpMhC.jpg)
+
+上图为本项目支持的 Oculus Go 控制器，便于首次使用时确认设备外观。
 
 ## 运行要求
 
@@ -58,10 +62,25 @@ Trigger / Back 按下和松开后，分别锁定陀螺仪光标移动一段时�
 | 文件 | 用途 |
 | --- | --- |
 | 程序目录下的 `settings.default.json` | 没有个人配置时加载的默认配置 |
-| `%LOCALAPPDATA%\OculusGoAirMouse\settings.json` | 当前 Windows 用户的个人设置，优先加载 |
-| `%LOCALAPPDATA%\OculusGoAirMouse\input-diagnostics.log` | 实际运行诊断日志，启动时重新创建 |
+| `UserData\<当前用户名>\settings.json` | 当前 Windows 用户的个人设置，优先加载 |
+| `UserData\<当前用户名>\input-diagnostics.log` | 实际运行诊断日志，启动时重新创建 |
 
-修改程序目录中的默认配置不会覆盖已有个人配置。首次没有个人配置时会创建个人设置；配置读取失败时显示错误并暂用模型默认值，不在加载失败时自动覆盖损坏文件。保存使用临时文件替换。若以另一个管理员账户运行，个人配置和日志也属于那个账户。
+修改程序目录中的默认配置不会覆盖已有个人配置。首次没有个人配置时会创建个人设置；配置读取失败时显示错误并暂用模型默认值，不在加载失败时自动覆盖损坏文件。保存使用临时文件替换。数据目录以程序所在目录（`AppContext.BaseDirectory`）为基准，不受快捷方式“起始位置”影响。例如以 `jinge` 运行时：
+
+```text
+OculusGoAirMouse.exe
+settings.default.json
+UserData/
+  jinge/
+    settings.json
+    input-diagnostics.log
+```
+
+子目录名取当前进程的 Windows 用户名。如果以另一个管理员账户运行，会使用那个账户的用户名。程序自动创建所需目录；程序所在目录需要允许当前运行账户写入。
+
+升级后，如果新目录没有 `settings.json`，程序会读取旧位置 `%LOCALAPPDATA%\OculusGoAirMouse\settings.json`，校验通过后将配置写入新目录，保留旧文件。新目录已有配置时不会被旧配置覆盖；旧配置损坏时显示错误，不自动覆盖原文件。历史日志保留在原位置，新的运行日志写入新目录。
+
+每个程序目录有自己的 `UserData`；移动程序或使用新的发布目录时，如需保留数据，请一并复制对应用户子目录。不要将 `UserData` 作为公开发布包或源码的一部分。
 
 下表列出当前仓库 `settings.default.json` 的值和可配置范围：
 
@@ -151,7 +170,7 @@ dotnet publish OculusGoAirMouse.csproj -c Release -r win-x64 --self-contained tr
 
 参见[微软 .NET 发布说明](https://learn.microsoft.com/en-us/dotnet/core/deploying/)。自包含发布不会免除 Windows 系统兼容性、蓝牙驱动、管理员权限和系统配对要求。
 
-在新电脑上先完成系统配对，再运行发布目录里的 `.exe`。如需沿用个人设置，复制原电脑的 `%LOCALAPPDATA%\OculusGoAirMouse\settings.json` 到新电脑对应用户目录；配对记录和校准结果不会随配置文件复制。
+在新电脑上先完成系统配对，再运行发布目录里的 `.exe`。如需沿用个人设置，复制原电脑程序目录下的 `UserData\<原用户名>\settings.json` 到新电脑程序目录下的 `UserData\<新用户名>\settings.json`；配对记录和校准结果不会随配置文件复制。
 
 ## 常见问题与诊断
 
@@ -198,7 +217,7 @@ ViewModel 使用 CommunityToolkit.Mvvm 的 `ObservableObject`、`ObservablePrope
 
 正常退出会取消并等待连接/重连、释放模拟按键、取消蓝牙事件订阅、关闭通知与会话、停止输入线程和界面定时器、移除电源事件订阅、关闭进度环、停止优先级监测，并排空及关闭日志。强制结束进程不执行完整退出流程。
 
-仓库使用 Git 管理源码历史。`bin/`、`obj/`、Visual Studio 缓存、日志、个人设置及备份文件由 `.gitignore` 排除。
+仓库使用 Git 管理源码历史。`bin/`、`obj/`、Visual Studio 缓存、日志、`UserData/` 用户目录及备份文件由 `.gitignore` 排除。
 
 ## 许可证
 

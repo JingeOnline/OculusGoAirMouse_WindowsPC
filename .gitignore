@@ -8,3 +8,4 @@ obj/
 *.tmp
 *.log
 settings.json
+UserData/

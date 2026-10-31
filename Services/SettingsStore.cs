@@ -5,12 +5,27 @@ namespace OculusGoAirMouse.Services;
 
 public static class SettingsStore
 {
-    public static string FilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OculusGoAirMouse", "settings.json");
-    public static Settings Load(string? filePath = null)
+    public static string FilePath => Path.Combine(UserDataPaths.DirectoryPath, "settings.json");
+    private static string LegacyFilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OculusGoAirMouse", "settings.json");
+    public static Settings Load(string? filePath = null) => LoadCore(
+        filePath ?? FilePath,
+        Path.Combine(AppContext.BaseDirectory, "settings.default.json"),
+        filePath == null ? LegacyFilePath : null);
+
+    internal static Settings LoadCore(string requested, string defaults, string? legacy)
     {
-        var requested = filePath ?? FilePath;
-        var path = File.Exists(requested) ? requested : Path.Combine(AppContext.BaseDirectory, "settings.default.json");
-        var settings = File.Exists(path) ? JsonSerializer.Deserialize<Settings>(File.ReadAllText(path)) ?? throw new InvalidDataException("配置为空。") : new Settings();
+        if (File.Exists(requested)) return Read(requested);
+        if (legacy != null && File.Exists(legacy))
+        {
+            var migrated = Read(legacy);
+            Save(migrated, requested);
+            return migrated;
+        }
+        return File.Exists(defaults) ? Read(defaults) : new Settings();
+    }
+    private static Settings Read(string path)
+    {
+        var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(path)) ?? throw new InvalidDataException("配置为空。");
         settings.Validate();
         return settings;
     }

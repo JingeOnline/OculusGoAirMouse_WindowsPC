@@ -17,7 +17,7 @@ public partial class MainViewModel : ObservableObject
     private int stopGeneration;
     private Task? shutdown;
     private readonly Queue<string> logLines = new();
-    public string Title => "Oculus Go Air Mouse · 0.4.3";
+    public string Title => "Oculus Go Air Mouse · 0.4.4";
     public SettingsViewModel Settings { get; }
     [ObservableProperty] private string connectionStatus = "未连接";
     [ObservableProperty] private string engineStatus = "连接后可点击重新校准或长按 Oculus 1 秒。";
@@ -40,7 +40,7 @@ public partial class MainViewModel : ObservableObject
         if (loadError != null) Settings.Message = loadError;
         runtime.Progress += OnProgress; runtime.Faulted += OnFault;
         runtime.Disconnected += OnDisconnected; runtime.LinkChanged += OnLinkChanged;
-        Log("版本 0.4.3：管理员启动，CPU 繁忙时自动提高调度优先级。");
+        Log("版本 0.4.4：个人配置和日志保存到程序目录 UserData 的当前用户子目录。");
     }
     partial void OnIsConnectingChanged(bool value) => RefreshCommands();
     partial void OnIsConnectedChanged(bool value) => RefreshCommands();
