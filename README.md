@@ -1,77 +1,79 @@
 # Oculus Go Air Mouse
 
-使用 Oculus Go 控制器操作 Windows 鼠标的桌面应用。当前版本 **0.5.1**，基于 **.NET 10、WPF Fluent Theme 和 CommunityToolkit.Mvvm 8.4.2**，采用 MVVM 架构，界面跟随系统明暗主题。
+[English](README.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md)
 
-![Oculus Go 控制器外观](https://s3files.core77.com/blog/images/922267_90183_87578_86lxkpMhC.jpg)
+Use your Oculus Go controller as a Windows air mouse. Version **0.5.1**, built with **.NET 10, WPF Fluent Theme, and CommunityToolkit.Mvvm 8.4.2** using MVVM. The interface follows the system light/dark theme.
 
-上图为本项目支持的 Oculus Go 控制器，便于首次使用时确认设备外观。
+![Oculus Go controller](https://s3files.core77.com/blog/images/922267_90183_87578_86lxkpMhC.jpg)
 
-## 运行要求
+The image shows the Oculus Go controller supported by this project.
 
-- Oculus Go 控制器、电量充足，以及支持 Bluetooth LE（BLE）的蓝牙适配器和驱动。
-- 满足 .NET 10 要求的 Windows 桌面系统，推荐 Windows 11。项目目标为 `net10.0-windows10.0.19041.0`；目标 API 版本不等于所有对应 Windows 版本都受当前 .NET 支持，具体参见[微软 Windows/.NET 支持说明](https://learn.microsoft.com/zh-cn/dotnet/core/install/windows)。
-- 普通构建/框架依赖发布需要 **.NET 10 Desktop Runtime**，仅安装基础 .NET Runtime 不够。编译源码需要 .NET 10 SDK；使用发布包不需要 Visual Studio。
-- 程序通过 `requireAdministrator` 请求管理员权限，用于控制任务管理器等已提升权限的普通桌面窗口。从普通桌面启动时确认 UAC；取消确认则不启动。已提升权限的环境可能不再提示。
+## Requirements
 
-## 首次使用与换电脑
+- An Oculus Go controller with sufficient battery charge, a Bluetooth LE (BLE) adapter, and working drivers.
+- A Windows desktop version compatible with .NET 10; Windows 11 is recommended. The project targets `net10.0-windows10.0.19041.0`. The target API version does not mean that every corresponding Windows release is supported by current .NET. See [Microsoft's Windows/.NET requirements](https://learn.microsoft.com/en-us/dotnet/core/install/windows).
+- **.NET 10 Desktop Runtime** for a regular build or framework-dependent release. The base .NET Runtime alone is insufficient. Building requires the .NET 10 SDK; running a release does not require Visual Studio.
+- The executable requests administrator access through `requireAdministrator`, allowing interaction with elevated windows such as Task Manager on the normal desktop. Approve UAC when prompted; cancelling prevents startup. An already elevated environment may not prompt again.
 
-> **先在 Windows 中完成蓝牙配对，再运行本程序。程序负责搜索和连接，不自动执行系统配对。“已发现控制器”不代表已配对。每台电脑都需要分别配对。**
+## First use or a different PC
 
-1. 让控制器进入配对模式，打开 **Windows 设置 → 蓝牙和设备 → 添加设备 → 蓝牙**，选择控制器并确认配对完成。
-2. 关闭其他电脑上的控制器程序，必要时暂时关闭其他电脑的蓝牙，避免同时连接。
-3. 启动 `OculusGoAirMouse.exe`，确认管理员权限提示，按 **Trigger** 唤醒控制器。
-4. 默认自动搜索并连接，连接成功后自动开启鼠标。若此前因未配对而停止，完成系统配对后点击 **搜索并连接**。
-5. 默认不自动校准，允许直接使用未校准输入。如有静置漂移，可点击 **重新校准**，或持续按住 **Oculus 1 秒**，随后保持控制器静止。
+> **Pair the controller in Windows before using this app. The app searches and connects; it does not perform system pairing. A discovered controller is not necessarily paired. Pair separately on each PC.**
 
-扫描时按配置中的 `DeviceName` 与广播名称精确匹配，区分大小写，默认 `OMVR-V190`。程序连接扫描得到的蓝牙地址，再检查指定的服务和特征 UUID；不固定绑定某台电脑的地址。附近多个同名控制器可能被选中最先发现的一个。
+1. Put the controller into pairing mode. Open **Windows Settings → Bluetooth & devices → Add device → Bluetooth**, select the controller, and complete pairing.
+2. Close controller apps on other PCs. Temporarily turn off their Bluetooth if necessary to avoid competing connections.
+3. Run `OculusGoAirMouse.exe`, approve the administrator prompt, and press **Trigger** to wake the controller.
+4. By default, the app automatically searches, connects, and enables mouse control. If an earlier attempt stopped because pairing was missing, finish pairing and click **Search and connect**.
+5. Automatic calibration is off by default, and uncalibrated input is supported. If the cursor drifts while still, click **Recalibrate** or hold **Oculus for 1 second**, then keep the controller stationary.
 
-## 界面语言
+Discovery matches the Bluetooth broadcast name exactly and case-sensitively against `DeviceName`, which defaults to `OMVR-V190`. The app connects to the discovered address and checks the required service and characteristic UUIDs; it is not tied to a particular PC's address. If several controllers share the same name, the first one discovered may be selected.
 
-顶部 **Language / 语言 / 言語** 菜单提供 **English**、**中文**、**日本語** 和 **跟随系统**。默认配置 `"Language": "system"` 按当前 Windows 用户的系统界面语言选择：所有中文区域使用中文，英语使用英语，日语使用日语；其他语言无法匹配时使用英语。
+## Interface language
 
-手动选择立即刷新按钮、选项卡、使用说明、设置标签、状态及程序生成的连接日志文本，并自动保存到当前用户的 `settings.json`，下次启动沿用。选择“跟随系统”可恢复系统语言模式。切换不会重连、重新校准或应用未保存的设置草稿；也不会改变数值输入的区域格式。Windows/驱动返回的原始错误内容可能保留系统语言，磁盘诊断日志保留原始信息用于排错。
+The top **Language / 语言 / 言語** menu offers **English**, **中文**, **日本語**, and **System default**. With `"Language": "system"`, Chinese system UI languages select Chinese, English selects English, Japanese selects Japanese, and other languages fall back to English.
 
-## 控制方式
+A manual selection immediately updates buttons, tabs, instructions, settings labels, status, and app-generated connection log text. It is automatically saved in the current user's `settings.json` for the next launch. Choose System default to restore automatic selection. Switching does not reconnect, recalibrate, apply unsaved settings, or change regional number formatting. Original Windows/driver errors may remain in the system language; disk diagnostics retain the original information.
 
-| 操作 | 行为 |
+## Controls
+
+| Action | Behavior |
 | --- | --- |
-| 转动控制器 | 移动光标 |
-| 按下 Oculus | 立即将光标移到主显示器中央 |
-| 持续按住 Oculus 达到 1 秒 | 自动开始重新校准，无需松开；每次长按只触发一次 |
-| Trigger | 鼠标左键，持续按住可拖拽 |
-| Back | 鼠标右键 |
-| 触摸板上下 / 左右滑动 | 垂直 / 水平传统整格滚动；水平滚动效果取决于目标应用 |
-| 断开 / 取消 | 停止连接操作或断开连接，并释放模拟按键 |
-| 关闭窗口 | 停止控制并清理后台资源 |
+| Rotate the controller | Move the cursor |
+| Press Oculus | Immediately center the cursor on the main display |
+| Hold Oculus for 1 second | Start recalibration without releasing; once per hold |
+| Trigger | Left click; hold to drag |
+| Back | Right click |
+| Slide the touchpad vertically / horizontally | Vertical / horizontal whole-notch scrolling; horizontal support depends on the target app |
+| Disconnect / cancel | Cancel a connection attempt or disconnect, and release simulated buttons |
+| Close the window | Stop control and clean up background resources |
 
-长按 Oculus 会先在按下时居中，再在达到 1 秒时开始校准；松开不执行额外动作。
+An Oculus hold first centers the cursor on press, then starts calibration at 1 second. Releasing does not trigger another action.
 
-### 校准和进度环
+### Calibration and progress ring
 
-- 校准时长由 `CalibrationDurationSeconds` 控制，允许 **0.1–3 秒**，默认 **1.25 秒**；与固定的 1 秒长按触发时间相互独立。
-- 校准从有效陀螺仪数据开始计时，数据中断超过 0.25 秒后重新计时，避免用缺失的数据完成校准。
-- 校准期间释放模拟按键、暂停移动和点击，保留鼠标开关状态。完成后，原先开启的继续控制，原先关闭的保持关闭；中途手动关闭也不会被重新开启。
-- 校准时显示跟随鼠标的蓝色圆形进度环。进度环置顶、透明、点击穿透、不抢焦点；主窗口最小化时仍可显示。完成校准、断线或退出后隐藏/释放。
-- 进度环覆盖普通应用窗口，不能保证覆盖安全桌面、独占全屏等特殊显示层。
-- 关闭自动校准时可使用零偏置的未校准输入；同一次运行中重连可沿用已完成的校准。校准结果不跨程序重启保存。
+- `CalibrationDurationSeconds` sets the calibration duration: **0.1–3 seconds**, default **1.25 seconds**. This is separate from the fixed 1-second hold threshold.
+- Calibration timing starts with valid gyroscope data. A data gap longer than 0.25 seconds restarts the measurement.
+- Calibration releases simulated buttons and pauses cursor movement and clicks while retaining the mouse switch state. Previously enabled control resumes on completion; disabled control remains disabled, including if turned off during calibration.
+- A blue circular progress ring follows the cursor. It stays on top, allows clicks through, and does not take focus. It can appear while the main window is minimized and hides/is released after completion, disconnection, or exit.
+- The ring covers normal app windows but is not guaranteed above secure desktops, exclusive fullscreen, or other special display layers.
+- With automatic calibration off, uncalibrated input uses zero bias. Reconnection can reuse a completed calibration within the same app session. Calibration results are not saved across restarts.
 
-### 点击防抖
+### Click stabilization
 
-Trigger / Back 按下和松开后，分别锁定陀螺仪光标移动一段时间。按键事件立即发送；持续按住超过锁定时间后仍可拖拽，滚动和本地鼠标不受此锁定影响。
+Trigger and Back briefly lock gyroscope cursor movement after press and after release. Button events are sent immediately; dragging resumes after the press-lock period even while held. Scrolling and the physical mouse are unaffected by this lock.
 
-锁定期间丢弃移动量并清空平滑残留，避免解除锁定后跳动。锁定从收到按下/松开数据时开始，不预测或回溯按下之前的移动。两项时长均可在设置页修改，设为 `0` 关闭对应锁定。
+Movement during the lock is discarded and smoothing residue is cleared, avoiding a jump on unlock. The lock begins when press/release data is received; it does not predict or undo movement before the press. Both durations are configurable; `0` disables the corresponding lock.
 
-## 设置与配置文件
+## Settings and user data
 
-在 **设置** 页修改参数，点击 **保存并应用**。保存前执行范围校验；保存后暂停鼠标控制，可再次开启。是否自动重新校准遵循 `AutoCalibrateOnConnect`；启动行为下次启动生效，设备名称及连接超时在后续连接尝试时使用。
+Edit values on **Settings**, then click **Save and apply**. Values are validated before saving. Saving pauses mouse control, which can be enabled again. Automatic recalibration follows `AutoCalibrateOnConnect`; startup behavior applies on the next launch, and device name/timeouts apply to subsequent connection attempts.
 
-| 文件 | 用途 |
+| File | Purpose |
 | --- | --- |
-| 程序目录下的 `settings.default.json` | 没有个人配置时加载的默认配置 |
-| `UserData\<当前用户名>\settings.json` | 当前 Windows 用户的个人设置，优先加载 |
-| `UserData\<当前用户名>\input-diagnostics.log` | 实际运行诊断日志，启动时重新创建 |
+| `settings.default.json` beside the executable | Defaults used when no personal configuration exists |
+| `UserData\<username>\settings.json` | Current Windows user's configuration; loaded first |
+| `UserData\<username>\input-diagnostics.log` | Runtime diagnostics; recreated at startup |
 
-修改程序目录中的默认配置不会覆盖已有个人配置。首次没有个人配置时会创建个人设置；配置读取失败时显示错误并暂用模型默认值，不在加载失败时自动覆盖损坏文件。保存使用临时文件替换。数据目录以程序所在目录（`AppContext.BaseDirectory`）为基准，不受快捷方式“起始位置”影响。例如以 `jinge` 运行时：
+Changing defaults does not overwrite personal settings. A personal configuration is created when none exists. On a loading error, the app reports it and uses model defaults without automatically overwriting the damaged file. Saving uses a temporary file replacement. Paths are relative to the executable directory (`AppContext.BaseDirectory`), not the shortcut's working directory. For user `jinge`:
 
 ```text
 OculusGoAirMouse.exe
@@ -82,156 +84,156 @@ UserData/
     input-diagnostics.log
 ```
 
-子目录名取当前进程的 Windows 用户名。如果以另一个管理员账户运行，会使用那个账户的用户名。程序自动创建所需目录；程序所在目录需要允许当前运行账户写入。
+The subfolder uses the Windows username of the running process. Running under another administrator account uses that account's username. Directories are created automatically, and the running account needs write access to the application directory.
 
-升级后，如果新目录没有 `settings.json`，程序会读取旧位置 `%LOCALAPPDATA%\OculusGoAirMouse\settings.json`，校验通过后将配置写入新目录，保留旧文件。新目录已有配置时不会被旧配置覆盖；旧配置损坏时显示错误，不自动覆盖原文件。历史日志保留在原位置，新的运行日志写入新目录。
+If the new location has no `settings.json`, the app validates and migrates `%LOCALAPPDATA%\OculusGoAirMouse\settings.json`, retaining the old file. Existing new settings take precedence. A corrupt old file is reported and not automatically overwritten. Historical logs remain in the old location; new logs use the new directory.
 
-每个程序目录有自己的 `UserData`；移动程序或使用新的发布目录时，如需保留数据，请一并复制对应用户子目录。不要将 `UserData` 作为公开发布包或源码的一部分。
+Each application directory has its own `UserData`. Copy the appropriate user subfolder when moving the app or switching publishing directories. Do not include `UserData` in public release packages or source control.
 
-下表列出当前仓库 `settings.default.json` 的值和可配置范围：
+The following values match the repository's current `settings.default.json`:
 
-| 配置项 | 当前默认文件值 | 说明 / 范围 |
+| Setting | Default file value | Description / range |
 | --- | --- | --- |
-| `Language` | `system` | 界面语言：`system` 跟随系统、`en` 英语、`zh` 中文、`ja` 日语 |
-| `DeviceName` | `OMVR-V190` | 控制器广播名称，不能为空 |
-| `AutoConnectOnStartup` | `true` | 启动后自动连接，成功后自动开启鼠标 |
-| `AutoReconnect` | `true` | 断线及睡眠唤醒后自动重连 |
-| `AutoCalibrateOnConnect` | `false` | 连接、重连及链路恢复后自动校准 |
-| `SensitivityX` | `1.75` | 水平灵敏度，0.001–100 |
-| `SensitivityY` | `1.25` | 垂直灵敏度，0.001–100 |
-| `DeadZone` | `65` | 陀螺仪死区，0–32767 |
-| `XAxis` | `0` | 水平轴，0=X、1=Y、2=Z |
-| `YAxis` | `2` | 垂直轴，0=X、1=Y、2=Z |
-| `XInvert` | `true` | 水平光标反转 |
-| `YInvert` | `false` | 垂直光标反转 |
-| `Smoothing` | `0.8` | 光标平滑系数，0.001–1，越大响应越快 |
-| `MaxMove` | `100` | 单次最大位移，1–2000 像素 |
-| `CalibrationDurationSeconds` | `1.25` | 校准时长，0.1–3 秒 |
-| `ClickPressLockMilliseconds` | `20` | 按下后光标锁定，0–2000 毫秒 |
-| `ClickReleaseLockMilliseconds` | `10` | 松开后光标锁定，0–2000 毫秒 |
-| `ButtonTimeout` | `3` | 按键数据超时后释放按键，0.25–60 秒 |
-| `ScrollUnitsPerNotch` | `30` | 每格滚动的触摸位移阈值，1–1000，越小越快 |
-| `ScrollVerticalInvert` | `false` | 垂直滚动反转 |
-| `ScrollHorizontalInvert` | `true` | 水平滚动反转 |
-| `ScanTimeoutSeconds` | `15` | 每次扫描超时，3–120 秒 |
-| `ConnectTimeoutSeconds` | `30` | 每次发现设备后的连接超时，5–120 秒 |
+| `Language` | `system` | UI language: `system`, `en`, `zh`, or `ja` |
+| `DeviceName` | `OMVR-V190` | Bluetooth broadcast name; required |
+| `AutoConnectOnStartup` | `true` | Connect and enable mouse control at startup |
+| `AutoReconnect` | `true` | Reconnect after disconnection or system resume |
+| `AutoCalibrateOnConnect` | `false` | Calibrate on connection, reconnection, and link recovery |
+| `SensitivityX` | `1.75` | Horizontal sensitivity, 0.001–100 |
+| `SensitivityY` | `1.25` | Vertical sensitivity, 0.001–100 |
+| `DeadZone` | `65` | Gyroscope dead zone, 0–32767 |
+| `XAxis` | `0` | Horizontal axis: 0=X, 1=Y, 2=Z |
+| `YAxis` | `2` | Vertical axis: 0=X, 1=Y, 2=Z |
+| `XInvert` | `true` | Invert horizontal movement |
+| `YInvert` | `false` | Invert vertical movement |
+| `Smoothing` | `0.8` | Cursor smoothing, 0.001–1; higher responds faster |
+| `MaxMove` | `100` | Maximum movement per update, 1–2000 pixels |
+| `CalibrationDurationSeconds` | `1.25` | Calibration duration, 0.1–3 seconds |
+| `ClickPressLockMilliseconds` | `20` | Cursor lock after press, 0–2000 milliseconds |
+| `ClickReleaseLockMilliseconds` | `10` | Cursor lock after release, 0–2000 milliseconds |
+| `ButtonTimeout` | `3` | Release buttons after a data timeout, 0.25–60 seconds |
+| `ScrollUnitsPerNotch` | `30` | Touch displacement per scroll notch, 1–1000; lower scrolls faster |
+| `ScrollVerticalInvert` | `false` | Invert vertical scrolling |
+| `ScrollHorizontalInvert` | `true` | Invert horizontal scrolling |
+| `ScanTimeoutSeconds` | `15` | Timeout per scan, 3–120 seconds |
+| `ConnectTimeoutSeconds` | `30` | Connection timeout after discovery, 5–120 seconds |
 
-两项点击锁定的模型备用默认值为 100 毫秒；当前仓库默认文件已调整为 20 / 10 毫秒。已有个人设置继续使用自身保存的值。
+The model fallback for each click-lock duration is 100 milliseconds. The repository's default file uses 20 / 10 milliseconds. Existing personal settings retain their saved values.
 
-## 连接、睡眠与权限恢复
+## Connection, sleep, and desktop recovery
 
-- 启动或手动连接失败后，清理本次会话，间隔 **2 秒**重新尝试，最多 **3 次尝试**。未配对属于需要用户处理的错误，会立即停止重试并显示配对步骤；配对后手动重试。
-- 短暂蓝牙中断时停止输入、释放按键，保留会话等待约 **3 秒**。持续中断且 `AutoReconnect=true` 时重新搜索，失败后间隔 2 秒继续尝试；主动断开、关闭自动重连或退出会停止重试。
-- 重连成功后恢复断线前的鼠标开关，是否重新校准由 `AutoCalibrateOnConnect` 决定。完整订阅完成前不处理控制器输入。
-- 电脑睡眠时取消正在进行的连接并释放按键。唤醒后等待 **2 秒**；若睡眠前正在连接、已连接或正在重连，且自动重连开启，就尝试恢复连接和原鼠标状态。控制器本身休眠时可能仍需按 Trigger 唤醒。
-- 锁屏或安全桌面暂时不可输入时暂停输出、保留连接及鼠标开关。桌面恢复后丢弃旧输入、补发必要的松键，并等待控制器按键松开后再接受新按键，避免误点击。
-- 普通桌面上持续的输入权限错误仍会报告故障。管理员运行不代表可以控制 UAC 安全桌面、锁屏或所有受保护窗口。
+- Startup/manual connection failures clean up the session and retry after **2 seconds**, with at most **3 attempts**. An unpaired controller stops retries immediately and shows pairing instructions. Retry manually after pairing.
+- A brief Bluetooth interruption stops input and releases buttons, retaining the session for about **3 seconds**. A persistent interruption with `AutoReconnect=true` starts repeated searches, with 2 seconds between failed attempts. Manual disconnect, disabling auto-reconnect, or exit stops retries.
+- Successful reconnection restores the previous mouse switch state. `AutoCalibrateOnConnect` controls recalibration. Controller input is ignored until all subscriptions are complete.
+- System sleep cancels pending connections and releases buttons. After resume, the app waits **2 seconds**. If it was connected, connecting, or reconnecting before sleep and auto-reconnect is enabled, it attempts to restore the connection and mouse state. A sleeping controller may still need a Trigger press to wake it.
+- Lock screens and temporarily unavailable secure desktops pause output while retaining the connection and mouse switch. Recovery discards old input, sends necessary button releases, and waits for held controller buttons to be released before accepting new presses.
+- Persistent input permission errors on the normal desktop are still reported as faults. Administrator access does not provide control over UAC secure desktops, lock screens, or every protected window.
 
-## CPU 优先级
+## CPU priority
 
-鼠标输入线程使用 `AboveNormal`。后台每秒采样 CPU 负载，鼠标控制开启且已连接时：
+The input thread runs at `AboveNormal`. The monitor samples CPU load once per second and adjusts priority when the controller is connected and mouse control is enabled:
 
-- 连续 2 次负载达到 **80%**，将普通或更低优先级的本进程提高至 `AboveNormal`。
-- 连续 5 次降至 **60% 或以下**、停止鼠标控制或断开连接后，恢复进程原优先级。
-- 保留启动环境原本指定的更高优先级，不主动设置 `High` 或 `RealTime`。
+- Two consecutive samples at **80% or higher** raise this process from normal/lower priority to `AboveNormal`.
+- Five consecutive samples at **60% or lower**, disabling mouse control, or disconnecting restores the original process priority.
+- An originally higher priority is retained; the app does not explicitly set `High` or `RealTime`.
 
-监测失败不会中断蓝牙连接，优先级变化和错误写入日志。退出时停止监测并恢复原优先级。优先级改善调度机会，不保证在 CPU 饱和、驱动延迟或蓝牙干扰下完全消除卡顿。
+Monitoring failures do not interrupt Bluetooth. Changes and errors are logged. Exit stops monitoring and restores the original priority. Scheduling priority can improve responsiveness but cannot guarantee smooth movement under CPU saturation, driver delays, or Bluetooth interference.
 
-## 构建与运行
+## Build and run
 
-在项目根目录执行：
+From the repository root:
 
 ```powershell
 dotnet build OculusGoAirMouse.slnx
 ```
 
-然后双击下列文件并确认 UAC：
+Double-click the following executable and approve UAC:
 
 ```text
 bin\Debug\net10.0-windows10.0.19041.0\OculusGoAirMouse.exe
 ```
 
-也可以通过 PowerShell 启动：
+Or start it from PowerShell:
 
 ```powershell
 Start-Process -FilePath '.\bin\Debug\net10.0-windows10.0.19041.0\OculusGoAirMouse.exe' -Verb RunAs
 ```
 
-如需 Visual Studio 调试，以管理员身份启动 Visual Studio，再打开 `OculusGoAirMouse.slnx`。更新构建前先关闭正在运行的程序，以免输出文件被占用。
+For debugging, run Visual Studio as administrator and open `OculusGoAirMouse.slnx`. Close the running app before rebuilding to avoid locked output files.
 
-## 发布到另一台电脑
+## Publish for another PC
 
-下面以 **Windows x64** 为例，Arm64 / x86 电脑应使用匹配的运行时标识。两种发布方式都应复制整个输出目录，包含 `settings.default.json`。
+These examples target **Windows x64**. Use the matching runtime identifier for Arm64 / x86 PCs. Copy the entire output folder, including `settings.default.json`.
 
-需要目标电脑预装 .NET 10 Desktop Runtime：
+Framework-dependent; the destination needs .NET 10 Desktop Runtime:
 
 ```powershell
 dotnet publish OculusGoAirMouse.csproj -c Release -r win-x64 --self-contained false -o .\bin\publish\win-x64-framework
 ```
 
-包含运行时，目标电脑无需另装 .NET：
+Self-contained; no separate .NET installation is needed:
 
 ```powershell
 dotnet publish OculusGoAirMouse.csproj -c Release -r win-x64 --self-contained true -o .\bin\publish\win-x64-selfcontained
 ```
 
-参见[微软 .NET 发布说明](https://learn.microsoft.com/en-us/dotnet/core/deploying/)。自包含发布不会免除 Windows 系统兼容性、蓝牙驱动、管理员权限和系统配对要求。
+See [Microsoft's publishing documentation](https://learn.microsoft.com/en-us/dotnet/core/deploying/). Self-contained deployment still requires a compatible Windows version, Bluetooth drivers, administrator access, and system pairing.
 
-在新电脑上先完成系统配对，再运行发布目录里的 `.exe`。如需沿用个人设置，复制原电脑程序目录下的 `UserData\<原用户名>\settings.json` 到新电脑程序目录下的 `UserData\<新用户名>\settings.json`；配对记录和校准结果不会随配置文件复制。
+Pair on the destination PC before running its `.exe`. To transfer personal settings, copy `UserData\<old-username>\settings.json` from the original app folder to `UserData\<new-username>\settings.json` in the destination app folder. Pairing records and calibration results do not travel with the configuration.
 
-## 常见问题与诊断
+## Troubleshooting and diagnostics
 
-| 现象 | 检查方式 |
+| Symptom | What to check |
 | --- | --- |
-| 找不到控制器 | 检查电量、蓝牙、广播名称；按 Trigger 唤醒；检查其他电脑是否抢先连接 |
-| 已发现，但提示尚未配对 | 在本机 Windows 蓝牙设置中完成配对，再手动连接 |
-| `0x8065000F` / 加密不足 | 检查本机配对；已配对仍失败时可移除设备后重新配对 |
-| `AccessDenied` / 服务访问被拒绝 | 查看配对状态、服务访问状态及诊断日志，排查其他连接和驱动；仅凭此状态无法确定唯一原因 |
-| 三次连接失败 | 查看连接日志及诊断文件，保留错误码和 `connect attempt=` 附近的调用堆栈 |
-| 无法控制任务管理器等窗口 | 确认启动的是当前 `.exe` 并已批准管理员权限；UAC 安全桌面不提供鼠标控制 |
-| 静置时光标漂移 | 手动重新校准；检查死区、灵敏度和控制器是否稳定 |
-| 点击时光标抖动 | 调整按下后 / 松开后的光标锁定时长；确认静置时是否也存在漂移 |
-| 唤醒后仍未恢复 | 解锁桌面、按 Trigger 唤醒控制器，检查自动重连设置与诊断日志中的电源及输入桌面状态 |
+| Controller not found | Battery, Bluetooth, broadcast name, Trigger wake-up, and competing connections from another PC |
+| Controller found but not paired | Complete pairing in this PC's Windows Bluetooth settings, then connect manually |
+| `0x8065000F` / insufficient encryption | Check local pairing; if already paired, remove and pair again |
+| `AccessDenied` / service access denied | Check pairing, service access state, diagnostics, other connections, and drivers; this status alone does not identify a single cause |
+| Three failed connection attempts | Inspect the connection log and diagnostics, including the error code and stack near `connect attempt=` |
+| Cannot control Task Manager or another elevated window | Run the current `.exe` and approve administrator access; UAC secure desktops are not controllable |
+| Cursor drifts while still | Recalibrate; check the dead zone, sensitivity, and controller stability |
+| Cursor jumps when clicking | Adjust press/release lock durations; check whether drift also occurs while still |
+| No recovery after system resume | Unlock the desktop, wake the controller with Trigger, and inspect auto-reconnect settings and power/input-desktop diagnostics |
 
-复现问题后，在下次启动前保存诊断日志，避免被新会话覆盖。反馈时提供程序版本、Windows 版本、蓝牙适配器/驱动信息、复现步骤及对应日志。回归测试日志单独写入测试输出目录的 `scratch`，不会覆盖实际运行日志。
+Save the diagnostic log before launching another session, which would overwrite it. Include app version, Windows version, Bluetooth adapter/driver information, reproduction steps, and relevant logs when reporting a problem. Regression-test logs use `scratch` under the test output folder and do not overwrite runtime diagnostics.
 
-## 验证与开发结构
+## Tests and architecture
 
-无需真实控制器的回归检查：
+Regression checks without a physical controller:
 
 ```powershell
 dotnet run --project tests/OculusGoAirMouse.Checks.csproj
 ```
 
-原生进度环检查会短暂显示测试窗口，不连接控制器；测试程序使用同一管理员清单，应从已提升权限的终端运行：
+The native progress-ring check briefly shows a test window without connecting a controller. It uses the same administrator manifest, so run it from an elevated terminal:
 
 ```powershell
 dotnet run --project tests/OverlaySmoke/OverlaySmoke.csproj
 ```
 
-中英日界面检查使用模拟运行时，不连接控制器，也不写入真实个人配置：
+The English/Chinese/Japanese UI check uses a simulated runtime, does not connect a controller, and does not write real personal settings:
 
 ```powershell
 dotnet run --project tests/LanguageSmoke/LanguageSmoke.csproj
 ```
 
-检查覆盖系统语言回退、语言切换及偏好保存、配置校验/保存、未配对停止重试、鼠标输入、点击锁定、校准、滚动、独立输入线程、标题栏兼容、断线与睡眠恢复、桌面不可输入、优先级切换以及资源释放。真实蓝牙兼容性、睡眠唤醒和高负载手感仍需实际硬件测试。
+Coverage includes language fallback/switching/persistence, configuration validation, pairing errors, input, click locks, calibration, scrolling, the independent input thread, title-bar compatibility, disconnection/sleep recovery, unavailable desktops, scheduling priority, and resource disposal. Real Bluetooth compatibility, sleep behavior, and high-load responsiveness still require hardware testing.
 
 ```text
-Models/        参数及范围校验
-ViewModels/    界面状态、异步命令、设置编辑与保存
-Services/      蓝牙连接、输入线程、鼠标输出、校准进度环、CPU 调度、配置和日志
-MainWindow.*   界面绑定、标题栏几何、日志滚动及关闭流程
-App.xaml.cs    服务组装、电源事件订阅及退出清理
-tests/         回归检查和原生窗口检查
+Models/        Settings and validation
+ViewModels/    UI state, asynchronous commands, settings editing and saving
+Services/      Bluetooth, input worker, mouse output, progress ring, CPU scheduling, settings and logs
+MainWindow.*   Bindings, title-bar geometry, log scrolling and closing
+App.xaml.cs    Service composition, power events and exit cleanup
+tests/         Regression and native-window checks
 ```
 
-ViewModel 使用 CommunityToolkit.Mvvm 的 `ObservableObject`、`ObservableProperty` 和 `RelayCommand`，依赖运行时、设置存储及界面调度接口。控制器输入在独立线程串行执行，不依赖界面线程发送鼠标松键。
+ViewModels use CommunityToolkit.Mvvm's `ObservableObject`, `ObservableProperty`, and `RelayCommand`, with runtime, settings-store, and UI-scheduler interfaces. Controller input is serialized on an independent thread; mouse-up delivery does not depend on the UI thread.
 
-正常退出会取消并等待连接/重连、释放模拟按键、取消蓝牙事件订阅、关闭通知与会话、停止输入线程和界面定时器、移除电源事件订阅、关闭进度环、停止优先级监测，并排空及关闭日志。强制结束进程不执行完整退出流程。
+Normal exit cancels and awaits connection/reconnect work, releases simulated buttons, unsubscribes Bluetooth events, closes notifications/sessions, stops the input thread and UI timers, removes power subscriptions, closes the progress ring, stops priority monitoring, and drains/closes logs. Forced termination does not run the complete cleanup path.
 
-仓库使用 Git 管理源码历史。`bin/`、`obj/`、Visual Studio 缓存、日志、`UserData/` 用户目录及备份文件由 `.gitignore` 排除。
+Git tracks source history. `.gitignore` excludes `bin/`, `obj/`, Visual Studio caches, logs, `UserData/`, and backup files.
 
-## 许可证
+## License
 
-[Apache License 2.0](LICENSE.txt)。
+[Apache License 2.0](LICENSE.txt).
