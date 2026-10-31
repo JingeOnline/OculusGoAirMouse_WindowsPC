@@ -35,7 +35,7 @@ public partial class MainViewModel : ObservableObject
         this.runtime = runtime; this.ui = ui;
         string? loadError = null;
         try { current = store.Load(); if (!store.Exists) store.Save(current); }
-        catch (Exception ex) { current = new(); loadError = "配置读取失败，暂用迁移默认值。原配置未覆盖：" + ex.Message; }
+        catch (Exception ex) { current = new(); loadError = "配置读取失败，暂用默认设置。原配置未覆盖：" + ex.Message; }
         Settings = new(current, store, ApplySettingsAsync);
         if (loadError != null) Settings.Message = loadError;
         runtime.Progress += OnProgress; runtime.Faulted += OnFault;
