@@ -27,7 +27,7 @@ public sealed class EngineWorker : IAsyncDisposable
     {
         this.output = output;
         engine = new(output);
-        workerThread = new Thread(Run) { IsBackground = true, Name = "Oculus mouse input" };
+        workerThread = new Thread(Run) { IsBackground = true, Name = "Oculus mouse input", Priority = ThreadPriority.AboveNormal };
         workerThread.Start();
     }
 

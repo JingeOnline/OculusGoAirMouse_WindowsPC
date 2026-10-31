@@ -7,6 +7,7 @@ public partial class App : Application
 {
     private WpfCalibrationOverlay? calibrationOverlay;
     private ControllerRuntime? controllerRuntime;
+    private AdaptivePriorityService? priorityService;
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -16,7 +17,9 @@ public partial class App : Application
         ShutdownMode = ShutdownMode.OnMainWindowClose;
         calibrationOverlay = new WpfCalibrationOverlay(runtime, Dispatcher);
         MainWindow = new MainWindow(viewModel, output);
-        InputDiagnostics.Write("start version=0.4.2 MVVM");
+        InputDiagnostics.Write("start version=0.4.3 MVVM");
+        try { priorityService = new AdaptivePriorityService(() => runtime.Connected && runtime.Snapshot.Enabled); }
+        catch (Exception ex) { InputDiagnostics.Write("CPU priority monitor unavailable=" + ex.Message); }
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
         MainWindow.Show();
     }
@@ -41,7 +44,11 @@ public partial class App : Application
         controllerRuntime = null;
         calibrationOverlay?.Dispose();
         // Only background I/O remains here; shutdown never posts to the UI.
-        try { InputDiagnostics.ShutdownAsync().GetAwaiter().GetResult(); }
+        try
+        {
+            try { priorityService?.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+            finally { InputDiagnostics.ShutdownAsync().GetAwaiter().GetResult(); }
+        }
         finally { base.OnExit(e); }
     }
 }
