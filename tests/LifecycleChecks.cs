@@ -212,6 +212,29 @@ static class LifecycleChecks
         Check(!outputEarly && mouse.Calls == beforeReconnect, "Reconnection emitted input before subscription completed");
         await runtime.DisposeAsync();
 
+        connection = new FakeConnection { FailPairing = true }; runtime = new(new RecordingMouse(), connection);
+        try { await runtime.ConnectAsync(new()); throw new Exception("Unpaired controller accepted"); }
+        catch (PairingRequiredException ex) { Check(ex.Message.Contains("Windows") && ex.Message.Contains("配对"), "Unpaired error did not explain system pairing"); }
+        Check(connection.Connects == 1 && !runtime.Connected && !runtime.Snapshot.Enabled, "Unpaired controller retried or enabled mouse");
+        connection.FailPairing = false; await runtime.ConnectAsync(new());
+        Check(runtime.Connected && connection.Connects == 2, "Manual retry after pairing did not recover"); await runtime.DisposeAsync();
+        connection = new FakeConnection(); runtime = new(new RecordingMouse(), connection);
+        await runtime.ConnectAsync(new());
+        var pairingFault = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+        runtime.Faulted += error => pairingFault.TrySetResult(error);
+        connection.FailPairing = true; connection.Lose();
+        var reported = await pairingFault.Task.WaitAsync(TimeSpan.FromSeconds(3)); await Task.Delay(100);
+        Check(reported is PairingRequiredException && connection.Connects == 2 && !runtime.Connected, "Automatic reconnect repeated unpaired failure");
+        await runtime.SuspendAsync(); await runtime.ResumeAsync();
+        Check(connection.Connects == 2, "Unpaired stop was restarted by power events"); await runtime.DisposeAsync();
+        PairingRequiredException.EnsurePaired(true, "test"); count++;
+        try { PairingRequiredException.EnsurePaired(false, "OMVR-V190"); throw new Exception("Missing pairing check"); }
+        catch (PairingRequiredException) { count++; }
+        var emptyCom = new System.Runtime.InteropServices.COMException("", unchecked((int)0x80004005));
+        Check(ConnectionFailure.Describe(emptyCom).Contains("COMException") && ConnectionFailure.Describe(emptyCom).Contains("80004005"), "Blank exception hid diagnostic error code");
+        var encryption = new System.Runtime.InteropServices.COMException("", unchecked((int)0x8065000F));
+        Check(ConnectionFailure.Describe(encryption).Contains("加密") && ConnectionFailure.Describe(encryption).Contains("配对"), "Encryption error did not explain pairing");
+
         string path = Path.Combine(AppContext.BaseDirectory, "scratch", "diagnostic-close.log");
         var writer = new DiagnosticWriter(path);
         writer.Write("first"); writer.Write("last");
@@ -243,7 +266,7 @@ static class LifecycleChecks
     private sealed class FakeConnection : IControllerConnection
     {
         public bool Connected { get; private set; }
-        public bool BlockConnect, FailNotifications, FailDisconnect;
+        public bool BlockConnect, FailNotifications, FailDisconnect, FailPairing;
         public int NotificationStops, Disconnects, Connects, FailConnects;
         public Action? DuringConnect;
         public void Lose() { Connected = false; LinkInterrupted?.Invoke(); Disconnected?.Invoke(); }
@@ -260,6 +283,7 @@ static class LifecycleChecks
         {
             Interlocked.Increment(ref Connects);
             Started.TrySetResult();
+            PairingRequiredException.EnsurePaired(!FailPairing, settings.DeviceName);
             if (FailConnects > 0) { FailConnects--; throw new TimeoutException("simulated scan failure"); }
             if (BlockConnect) await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested(); DuringConnect?.Invoke(); Connected = true;

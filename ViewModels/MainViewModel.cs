@@ -17,7 +17,7 @@ public partial class MainViewModel : ObservableObject
     private int stopGeneration;
     private Task? shutdown;
     private readonly Queue<string> logLines = new();
-    public string Title => "Oculus Go Air Mouse · 0.4.1";
+    public string Title => "Oculus Go Air Mouse · 0.4.2";
     public SettingsViewModel Settings { get; }
     [ObservableProperty] private string connectionStatus = "未连接";
     [ObservableProperty] private string engineStatus = "连接后可点击重新校准或长按 Oculus 1 秒。";
@@ -40,7 +40,7 @@ public partial class MainViewModel : ObservableObject
         if (loadError != null) Settings.Message = loadError;
         runtime.Progress += OnProgress; runtime.Faulted += OnFault;
         runtime.Disconnected += OnDisconnected; runtime.LinkChanged += OnLinkChanged;
-        Log("版本 0.4.1：唤醒后等待桌面可用再恢复鼠标输入。");
+        Log("版本 0.4.2：连接前检查系统配对，未配对时停止重试并显示指引。");
     }
     partial void OnIsConnectingChanged(bool value) => RefreshCommands();
     partial void OnIsConnectedChanged(bool value) => RefreshCommands();
@@ -86,7 +86,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (!IsClosing && (IsConnecting || IsRecovering || runtime.Connected)) { ConnectionStatus = message; Log(message); }
     });
-    private void OnFault(Exception error) => PostStop("鼠标控制已停止：" + error.Message, false);
+    private void OnFault(Exception error) => PostStop("鼠标控制已停止：" + ConnectionFailure.Describe(error), false);
     private void OnDisconnected() => PostStop("控制器已断开，请唤醒后重新连接。", true);
     private void PostStop(string message, bool checkConnection) => ui.Post(async () =>
     {
@@ -123,7 +123,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (TimeoutException) { ConnectionStatus = "未发现控制器，请唤醒后重试。"; Log(ConnectionStatus); }
         catch (OperationCanceledException) { ConnectionStatus = "连接已取消或超时，请唤醒控制器后重试。"; Log(ConnectionStatus); }
-        catch (Exception ex) { ConnectionStatus = "连接失败：" + ex.Message; Log(ConnectionStatus); }
+        catch (Exception ex) { ConnectionStatus = "连接失败：" + ConnectionFailure.Describe(ex); Log(ConnectionStatus); }
         finally { IsConnecting = false; elapsed.Stop(); Pulse(); }
     }
     private async Task StopAsync(string reason)

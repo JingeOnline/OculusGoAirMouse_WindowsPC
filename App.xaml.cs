@@ -16,7 +16,7 @@ public partial class App : Application
         ShutdownMode = ShutdownMode.OnMainWindowClose;
         calibrationOverlay = new WpfCalibrationOverlay(runtime, Dispatcher);
         MainWindow = new MainWindow(viewModel, output);
-        InputDiagnostics.Write("start version=0.4.1 MVVM");
+        InputDiagnostics.Write("start version=0.4.2 MVVM");
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
         MainWindow.Show();
     }

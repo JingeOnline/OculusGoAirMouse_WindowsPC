@@ -51,6 +51,9 @@ public sealed class ControllerConnection : IControllerConnection
             cts.CancelAfter(TimeSpan.FromSeconds(settings.ConnectTimeoutSeconds));
             Progress?.Invoke("已发现控制器，正在建立连接并读取服务…");
             device = await BluetoothLEDevice.FromBluetoothAddressAsync(address).AsTask(cts.Token) ?? throw new InvalidOperationException("无法访问控制器，请检查 Windows 蓝牙配对。");
+            bool paired = device.DeviceInformation.Pairing.IsPaired;
+            InputDiagnostics.Write($"pairing precheck paired={paired} address={address:X12}");
+            PairingRequiredException.EnsurePaired(paired, settings.DeviceName);
             session = await GattSession.FromDeviceIdAsync(device.BluetoothDeviceId).AsTask(cts.Token)
                 ?? throw new InvalidOperationException("无法创建控制器蓝牙会话。");
             session.SessionStatusChanged += OnSessionStatusChanged;

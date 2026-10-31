@@ -74,8 +74,13 @@ public sealed class ControllerRuntime : IControllerRuntime
                     OnProgress(currentSettings.AutoCalibrateOnConnect ? "自动重连成功，正在静置校准；完成后恢复原鼠标状态。" : "自动重连成功，保留原鼠标状态；未自动执行校准。");
                     return;
                 }
+                catch (PairingRequiredException ex)
+                {
+                    lock (lifecycle) { manuallyStopped = true; wakeWanted = false; }
+                    OnProgress(ex.Message); OnFaulted(ex); return;
+                }
                 catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { throw; }
-                catch (Exception ex) { OnProgress("自动重连未成功：" + ex.Message + "；2 秒后重试。"); }
+                catch (Exception ex) { OnProgress("自动重连未成功：" + ConnectionFailure.Describe(ex) + "；2 秒后重试。"); }
                 await Task.Delay(TimeSpan.FromSeconds(2), cancellation.Token).ConfigureAwait(false);
             }
         }
@@ -175,8 +180,8 @@ public sealed class ControllerRuntime : IControllerRuntime
                     try { await connection.StopNotificationsAsync().ConfigureAwait(false); }
                     finally { connection.Disconnect(); }
                     InputDiagnostics.Write($"connect attempt={attempt} error={ex}");
-                    if (attempt >= maxAttempts) throw;
-                    OnProgress($"连接失败：{ex.Message}；2 秒后重试（{attempt + 1}/{maxAttempts}）。");
+                    if (ex is PairingRequiredException || attempt >= maxAttempts) throw;
+                    OnProgress($"连接失败：{ConnectionFailure.Describe(ex)}；2 秒后重试（{attempt + 1}/{maxAttempts}）。");
                     await Task.Delay(TimeSpan.FromSeconds(2), cancellation.Token).ConfigureAwait(false);
                 }
             }
