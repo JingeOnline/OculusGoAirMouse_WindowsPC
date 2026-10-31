@@ -7,9 +7,10 @@
     <Version>0.5.1</Version>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>AnyCPU;ARM64;x64</Platforms>
   </PropertyGroup>
   <ItemGroup><None Update="settings.default.json" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
   <ItemGroup><PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" /></ItemGroup>
-  <ItemGroup><Compile Remove="tests/**/*.cs"/><None Remove="tests/**"/></ItemGroup>
+  <ItemGroup><Compile Remove="tests/**/*.cs" /><None Remove="tests/**" /></ItemGroup>
 <ItemGroup><EmbeddedResource Include="Resources/Strings.*.json" WithCulture="false" LogicalName="OculusGoAirMouse.Resources.%(Filename)%(Extension)" /></ItemGroup>
 </Project>
