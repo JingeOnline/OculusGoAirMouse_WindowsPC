@@ -1,6 +1,6 @@
 # Oculus Go Air Mouse
 
-使用 Oculus Go 控制器操作 Windows 鼠标的桌面应用。当前版本 **0.5.0**，基于 **.NET 10、WPF Fluent Theme 和 CommunityToolkit.Mvvm 8.4.2**，采用 MVVM 架构，界面跟随系统明暗主题。
+使用 Oculus Go 控制器操作 Windows 鼠标的桌面应用。当前版本 **0.5.1**，基于 **.NET 10、WPF Fluent Theme 和 CommunityToolkit.Mvvm 8.4.2**，采用 MVVM 架构，界面跟随系统明暗主题。
 
 ![Oculus Go 控制器外观](https://s3files.core77.com/blog/images/922267_90183_87578_86lxkpMhC.jpg)
 
@@ -27,7 +27,7 @@
 
 ## 界面语言
 
-顶部 **Language / 语言** 菜单提供 **English**、**中文** 和 **System default / 跟随系统**。默认配置 `"Language": "system"` 按当前 Windows 用户的系统界面语言选择：所有中文区域使用中文，英语使用英语，其他语言无法匹配时使用英语。
+顶部 **Language / 语言 / 言語** 菜单提供 **English**、**中文**、**日本語** 和 **跟随系统**。默认配置 `"Language": "system"` 按当前 Windows 用户的系统界面语言选择：所有中文区域使用中文，英语使用英语，日语使用日语；其他语言无法匹配时使用英语。
 
 手动选择立即刷新按钮、选项卡、使用说明、设置标签、状态及程序生成的连接日志文本，并自动保存到当前用户的 `settings.json`，下次启动沿用。选择“跟随系统”可恢复系统语言模式。切换不会重连、重新校准或应用未保存的设置草稿；也不会改变数值输入的区域格式。Windows/驱动返回的原始错误内容可能保留系统语言，磁盘诊断日志保留原始信息用于排错。
 
@@ -92,7 +92,7 @@ UserData/
 
 | 配置项 | 当前默认文件值 | 说明 / 范围 |
 | --- | --- | --- |
-| `Language` | `system` | 界面语言：`system` 跟随系统、`en` 英语、`zh` 中文 |
+| `Language` | `system` | 界面语言：`system` 跟随系统、`en` 英语、`zh` 中文、`ja` 日语 |
 | `DeviceName` | `OMVR-V190` | 控制器广播名称，不能为空 |
 | `AutoConnectOnStartup` | `true` | 启动后自动连接，成功后自动开启鼠标 |
 | `AutoReconnect` | `true` | 断线及睡眠唤醒后自动重连 |
@@ -209,7 +209,7 @@ dotnet run --project tests/OculusGoAirMouse.Checks.csproj
 dotnet run --project tests/OverlaySmoke/OverlaySmoke.csproj
 ```
 
-中英文界面检查使用模拟运行时，不连接控制器，也不写入真实个人配置：
+中英日界面检查使用模拟运行时，不连接控制器，也不写入真实个人配置：
 
 ```powershell
 dotnet run --project tests/LanguageSmoke/LanguageSmoke.csproj

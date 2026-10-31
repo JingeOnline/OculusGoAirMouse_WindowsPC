@@ -12,7 +12,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IUiScheduler ui;
     private readonly ISettingsStore store;
     public Localization Texts => Localization.Current;
-    public IReadOnlyList<LanguageOption> Languages { get; } = [new("system", "System default / 跟随系统"), new("en", "English"), new("zh", "中文")];
+    public IReadOnlyList<LanguageOption> Languages { get; } = [new("system", "System default / 跟随系统"), new("en", "English"), new("zh", "中文"), new("ja", "日本語")];
     [ObservableProperty] private LanguageOption? selectedLanguage;
     private readonly Stopwatch elapsed = new();
     private Settings current;
@@ -21,7 +21,7 @@ public partial class MainViewModel : ObservableObject
     private int stopGeneration;
     private Task? shutdown;
     private readonly Queue<string> logLines = new();
-    public string Title => "Oculus Go Air Mouse · 0.5.0";
+    public string Title => "Oculus Go Air Mouse · 0.5.1";
     public SettingsViewModel Settings { get; }
     [ObservableProperty] private string connectionStatus = "未连接";
     [ObservableProperty] private string engineStatus = "连接后可点击重新校准或长按 Oculus 1 秒。";
@@ -46,7 +46,7 @@ public partial class MainViewModel : ObservableObject
         if (loadError != null) Settings.Message = loadError;
         runtime.Progress += OnProgress; runtime.Faulted += OnFault;
         runtime.Disconnected += OnDisconnected; runtime.LinkChanged += OnLinkChanged;
-        Log("版本 0.5.0：支持英语和中文，可跟随系统语言或手动选择。");
+        Log("版本 0.5.1：支持英语、中文和日语，可跟随系统语言或手动选择。");
     }
     partial void OnSelectedLanguageChanged(LanguageOption? value)
     {
@@ -54,6 +54,7 @@ public partial class MainViewModel : ObservableObject
         current.Language = value.Code;
         Settings.UpdateLanguagePreference(value.Code);
         Texts.SetPreference(value.Code);
+        foreach (var option in Languages) option.RefreshDisplayName();
         try { store.Save(current.Copy()); }
         catch (Exception ex) { Log("语言设置保存失败：" + ex.Message); }
     }

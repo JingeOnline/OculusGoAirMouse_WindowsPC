@@ -30,7 +30,7 @@ public sealed class Settings
     public void Validate()
     {
         static bool Range(double v, double min, double max) => double.IsFinite(v) && v >= min && v <= max;
-        if (Language is not ("system" or "en" or "zh")) throw new ArgumentException("语言选项只能为 system、en 或 zh。");
+        if (Language is not ("system" or "en" or "zh" or "ja")) throw new ArgumentException("语言选项只能为 system、en、zh 或 ja。");
         if (ClickPressLockMilliseconds is < 0 or > 2000 || ClickReleaseLockMilliseconds is < 0 or > 2000) throw new ArgumentException("点击光标锁定时长范围为 0–2000 毫秒，0 表示关闭。");
         if (string.IsNullOrWhiteSpace(DeviceName)) throw new ArgumentException("控制器名称不能为空。");
         if (!Range(SensitivityX, 0.001, 100) || !Range(SensitivityY, 0.001, 100)) throw new ArgumentException("灵敏度范围为 0.001–100。");

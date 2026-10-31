@@ -57,6 +57,15 @@ static class Smoke
                     Check(selector.ActualWidth>=180 && selector.IsVisible,"Language selector unavailable at minimum window size");
                     Check(((Button)window.FindName("CalibrateButton")).Content?.ToString()=="Recalibrate","English switch back failed");
                     SaveImage(window,"language-en-small.png");
+                    vm.SelectedLanguage=vm.Languages.Single(l=>l.Code=="ja");
+                }
+                else if(stage==4)
+                {
+                    Check(((Button)window.FindName("ConnectButton")).Content?.ToString()=="検索して接続", "Live Japanese button update failed");
+                    Check(((TextBlock)window.FindName("ConnectionStatus")).Text=="未接続", "Live Japanese status update failed");
+                    Check(Descendants(window).OfType<TextBlock>().Any(t=>t.Text=="コントローラー名"),"Japanese settings label binding failed");
+                    Check(vm.Settings.Fields[1].TextValue=="2.75" && store.Value.Language=="ja" && runtime.Applies==1,"Japanese selection did not preserve settings draft/runtime");
+                    SaveImage(window,"language-ja-small.png");
                     timer.Stop(); await vm.ShutdownAsync(); window.Close();
                     Console.WriteLine($"PASS: {checks} live WPF language, binding, settings draft and minimum-window checks.");
                 }

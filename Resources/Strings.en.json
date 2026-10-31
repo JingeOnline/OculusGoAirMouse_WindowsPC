@@ -114,13 +114,11 @@
   "点击光标锁定时长范围为 0–2000 毫秒，0 表示关闭。": "Click cursor-lock durations must be between 0 and 2000 milliseconds; 0 disables the lock.",
   "按键超时范围 0.25–60 秒，滚动阈值范围 1–1000。": "Button timeout must be 0.25–60 seconds and scroll threshold must be 1–1000.",
   "扫描超时范围 3–120 秒，连接超时范围 5–120 秒。": "Scan timeout must be 3–120 seconds and connection timeout must be 5–120 seconds.",
-  "语言选项只能为 system、en 或 zh。": "Language must be system, en, or zh.",
   "语言设置保存失败：": "Could not save language preference: ",
   "已关闭自动重连": "Automatic reconnect disabled",
   "蓝牙丢失，准备自动重连": "Bluetooth lost; preparing to reconnect",
   "系统睡眠": "System suspend",
   "程序关闭": "Application shutdown",
-  "版本 0.5.0：支持英语和中文，可跟随系统语言或手动选择。": "Version 0.5.0: English and Chinese, following the system language or your selection.",
   "：": ": ",
   "。": ".",
   "（": " (",
@@ -143,5 +141,8 @@
   "UI.ControlsText": "Oculus press: center the cursor on the main display immediately\nOculus hold for 1 second: recalibrate without releasing; keep still\nTrigger: left click; hold to drag\nBack: right click\nTouchpad: vertical / horizontal scrolling (whole notches)\nClose or disconnect: stop control and release mouse buttons",
   "UI.SettingsHint": "Edit and save parameters on the Settings tab. Saving pauses mouse control; automatic calibration follows your setting. Device name and timeouts apply to subsequent connection attempts.",
   "标题栏区域必须由窗口线程更新。": "Title-bar regions must be updated on the window thread.",
-  "窗口命中测试未响应，已停止此次控制器点击。": "Window hit testing did not respond. This controller click was cancelled."
+  "窗口命中测试未响应，已停止此次控制器点击。": "Window hit testing did not respond. This controller click was cancelled.",
+  "语言选项只能为 system、en、zh 或 ja。": "Language must be system, en, zh, or ja.",
+  "版本 0.5.1：支持英语、中文和日语，可跟随系统语言或手动选择。": "Version 0.5.1: English, Chinese and Japanese, following the system language or your selection.",
+  "UI.SystemOption": "System default"
 }

@@ -12,10 +12,12 @@ static class LocalizationChecks
         void Check(bool value, string message) { if (!value) throw new Exception(message); count++; }
         foreach (string culture in new[] { "zh-CN", "zh-TW", "zh-HK", "zh-Hans" })
             Check(Localization.Resolve("system", CultureInfo.GetCultureInfo(culture)) == "zh", "Chinese system language did not resolve to Chinese");
-        foreach (string culture in new[] { "en-US", "en-GB", "fr-FR", "ja-JP", "de-DE" })
+        foreach (string culture in new[] { "en-US", "en-GB", "fr-FR", "ko-KR", "de-DE" })
             Check(Localization.Resolve("system", CultureInfo.GetCultureInfo(culture)) == "en", "Unsupported/English system language did not resolve to English");
         Check(Localization.Resolve("system", CultureInfo.InvariantCulture) == "en", "Invariant UI language did not fall back to English");
         Check(Localization.Resolve("en", CultureInfo.GetCultureInfo("zh-CN")) == "en" && Localization.Resolve("zh", CultureInfo.GetCultureInfo("en-US")) == "zh", "Explicit language did not override system");
+        Check(Localization.Resolve("system", CultureInfo.GetCultureInfo("ja-JP")) == "ja", "Japanese system language did not resolve to Japanese");
+        Check(Localization.Resolve("ja", CultureInfo.GetCultureInfo("zh-CN")) == "ja", "Explicit Japanese did not override system");
         var text = Localization.Current;
         try
         {
@@ -36,9 +38,20 @@ static class LocalizationChecks
             var en = JsonSerializer.Deserialize<Dictionary<string,string>>(enStream)!;
             var zh = JsonSerializer.Deserialize<Dictionary<string,string>>(zhStream)!;
             Check(en.Keys.ToHashSet().SetEquals(zh.Keys) && en.Values.All(v => !string.IsNullOrWhiteSpace(v) && !HasChinese(v)), "Resource keys differ or English resources contain untranslated Chinese");
+            using var jaStream = assembly.GetManifestResourceStream("OculusGoAirMouse.Resources.Strings.ja.json")!;
+            var ja = JsonSerializer.Deserialize<Dictionary<string,string>>(jaStream)!;
+            Check(ja.Keys.ToHashSet().SetEquals(en.Keys) && ja.Values.All(v => !string.IsNullOrWhiteSpace(v)), "Japanese resources are incomplete");
+            text.SetPreference("ja");
+            Check(text["UI.Connect"] == "検索して接続" && text["UI.SettingsTab"] == "設定", "Japanese UI resources missing");
+            string japanesePairing = text.Translate(new PairingRequiredException("OMVR-V190").Message);
+            Check(japanesePairing.Contains("ペアリングされていません") && japanesePairing.Contains("OMVR-V190"), "Japanese pairing message lost translation or device name");
+            string japaneseProgress = text.Translate("静止校准：50% / 1.25 秒（完成后继续控制）");
+            Check(japaneseProgress.Contains("動かさずに調整中") && japaneseProgress.Contains("50%") && japaneseProgress.Contains("1.25"), "Japanese calibration progress lost values");
+            Check(text.Translate("12:34:56  连接失败：读取特征失败：AccessDenied；2 秒后重试（3/3）。").Contains("再試行") && text.Translate("未连接") == "未接続", "Japanese dynamic status/log translation failed");
+            Check(text.Translate(@"配置文件：C:\UserData\设置\settings.json").EndsWith(@"C:\UserData\设置\settings.json"), "Japanese translation changed configuration path");
             var store = new Store(); var runtime = new Runtime();
             var vm = new MainViewModel(runtime, store, new Scheduler()); await vm.InitializeAsync();
-            Check(vm.SelectedLanguage!.Code == "system" && vm.Languages.Count == 3, "Initial language menu selection incorrect");
+            Check(vm.SelectedLanguage!.Code == "system" && vm.Languages.Count == 4, "Initial language menu selection incorrect");
             vm.Settings.Fields[1].TextValue = "2.75";
             vm.SelectedLanguage = vm.Languages.Single(l => l.Code == "en");
             Check(store.Value.Language == "en" && text.Language == "en" && store.Value.SensitivityX == 1.75, "Language save unexpectedly applied settings draft");
@@ -47,6 +60,13 @@ static class LocalizationChecks
             Check(text.Language == "zh" && store.Value.Language == "zh", "Chinese switch did not persist");
             var reopened = new MainViewModel(new Runtime(), store, new Scheduler());
             Check(reopened.SelectedLanguage!.Code == "zh", "Saved language did not survive reopening"); await reopened.ShutdownAsync();
+            bool systemLabelChanged = false;
+            vm.Languages.Single(l => l.Code == "system").PropertyChanged += (_,e) => systemLabelChanged |= e.PropertyName == "DisplayName";
+            vm.SelectedLanguage = vm.Languages.Single(l => l.Code == "ja");
+            Check(store.Value.Language == "ja" && text.Language == "ja" && vm.Settings.Fields[1].TextValue == "2.75" && runtime.Applies == 1, "Japanese selection did not persist or changed draft/runtime");
+            Check(systemLabelChanged && vm.Languages.Single(l => l.Code == "system").DisplayName == "システムに合わせる", "System option did not update to Japanese");
+            var japaneseReopened = new MainViewModel(new Runtime(), store, new Scheduler());
+            Check(japaneseReopened.SelectedLanguage!.Code == "ja", "Japanese preference did not survive reopening"); await japaneseReopened.ShutdownAsync();
             vm.SelectedLanguage = vm.Languages.Single(l => l.Code == "system");
             Check(store.Value.Language == "system" && text.Language == Localization.Resolve("system", CultureInfo.CurrentUICulture), "System language option did not restore automatic selection");
             await vm.Settings.SaveCommand.ExecuteAsync(null);
@@ -57,6 +77,7 @@ static class LocalizationChecks
             string path = Path.Combine(AppContext.BaseDirectory,"scratch","language-settings.json");
             SettingsStore.Save(new Settings { Language = "zh" },path);
             Check(SettingsStore.Load(path).Language == "zh", "Language preference did not roundtrip");
+            SettingsStore.Save(new Settings { Language = "ja" },path); Check(SettingsStore.Load(path).Language == "ja", "Japanese preference did not roundtrip");
             File.WriteAllText(path,"{}"); Check(SettingsStore.Load(path).Language == "system", "Existing settings without language did not follow system");
             try { new Settings { Language = "invalid" }.Validate(); throw new Exception("Invalid language accepted"); }
             catch (ArgumentException) { count++; }
