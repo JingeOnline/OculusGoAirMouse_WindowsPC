@@ -20,6 +20,7 @@ public partial class SettingsViewModel : ObservableObject
     {
         current = settings.Copy(); this.store = store; this.apply = apply; BuildFields();
     }
+    public void UpdateLanguagePreference(string language) => current.Language = language;
     private bool CanSave() => IsAvailable;
     partial void OnIsAvailableChanged(bool value) { SaveCommand.NotifyCanExecuteChanged(); ReloadCommand.NotifyCanExecuteChanged(); }
     private void BuildFields()

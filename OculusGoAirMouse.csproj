@@ -4,11 +4,12 @@
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
-    <Version>0.4.4</Version>
+    <Version>0.5.0</Version>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup><None Update="settings.default.json" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
   <ItemGroup><PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" /></ItemGroup>
   <ItemGroup><Compile Remove="tests/**/*.cs"/><None Remove="tests/**"/></ItemGroup>
+<ItemGroup><EmbeddedResource Include="Resources/Strings.*.json" WithCulture="false" LogicalName="OculusGoAirMouse.Resources.%(Filename)%(Extension)" /></ItemGroup>
 </Project>

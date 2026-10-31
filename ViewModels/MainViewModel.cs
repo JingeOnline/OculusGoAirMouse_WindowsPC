@@ -10,6 +10,10 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly IControllerRuntime runtime;
     private readonly IUiScheduler ui;
+    private readonly ISettingsStore store;
+    public Localization Texts => Localization.Current;
+    public IReadOnlyList<LanguageOption> Languages { get; } = [new("system", "System default / 跟随系统"), new("en", "English"), new("zh", "中文")];
+    [ObservableProperty] private LanguageOption? selectedLanguage;
     private readonly Stopwatch elapsed = new();
     private Settings current;
     private IDisposable? ticker;
@@ -17,7 +21,7 @@ public partial class MainViewModel : ObservableObject
     private int stopGeneration;
     private Task? shutdown;
     private readonly Queue<string> logLines = new();
-    public string Title => "Oculus Go Air Mouse · 0.4.4";
+    public string Title => "Oculus Go Air Mouse · 0.5.0";
     public SettingsViewModel Settings { get; }
     [ObservableProperty] private string connectionStatus = "未连接";
     [ObservableProperty] private string engineStatus = "连接后可点击重新校准或长按 Oculus 1 秒。";
@@ -32,15 +36,26 @@ public partial class MainViewModel : ObservableObject
 
     public MainViewModel(IControllerRuntime runtime, ISettingsStore store, IUiScheduler ui)
     {
-        this.runtime = runtime; this.ui = ui;
+        this.runtime = runtime; this.ui = ui; this.store = store;
         string? loadError = null;
         try { current = store.Load(); if (!store.Exists) store.Save(current); }
         catch (Exception ex) { current = new(); loadError = "配置读取失败，暂用默认设置。原配置未覆盖：" + ex.Message; }
+        Texts.SetPreference(current.Language);
+        selectedLanguage = Languages.First(option => option.Code == current.Language);
         Settings = new(current, store, ApplySettingsAsync);
         if (loadError != null) Settings.Message = loadError;
         runtime.Progress += OnProgress; runtime.Faulted += OnFault;
         runtime.Disconnected += OnDisconnected; runtime.LinkChanged += OnLinkChanged;
-        Log("版本 0.4.4：个人配置和日志保存到程序目录 UserData 的当前用户子目录。");
+        Log("版本 0.5.0：支持英语和中文，可跟随系统语言或手动选择。");
+    }
+    partial void OnSelectedLanguageChanged(LanguageOption? value)
+    {
+        if (value == null || IsClosing) return;
+        current.Language = value.Code;
+        Settings.UpdateLanguagePreference(value.Code);
+        Texts.SetPreference(value.Code);
+        try { store.Save(current.Copy()); }
+        catch (Exception ex) { Log("语言设置保存失败：" + ex.Message); }
     }
     partial void OnIsConnectingChanged(bool value) => RefreshCommands();
     partial void OnIsConnectedChanged(bool value) => RefreshCommands();

@@ -17,7 +17,7 @@ public partial class App : Application
         ShutdownMode = ShutdownMode.OnMainWindowClose;
         calibrationOverlay = new WpfCalibrationOverlay(runtime, Dispatcher);
         MainWindow = new MainWindow(viewModel, output);
-        InputDiagnostics.Write("start version=0.4.4 MVVM");
+        InputDiagnostics.Write("start version=0.5.0 MVVM");
         try { priorityService = new AdaptivePriorityService(() => runtime.Connected && runtime.Snapshot.Enabled); }
         catch (Exception ex) { InputDiagnostics.Write("CPU priority monitor unavailable=" + ex.Message); }
         SystemEvents.PowerModeChanged += OnPowerModeChanged;

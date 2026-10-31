@@ -33,6 +33,8 @@ public partial class MainWindow : Window
         if (closing) return;
         closing = true;
         await viewModel.ShutdownAsync();
-        closeReady = true; Close();
+        closeReady = true;
+        // Exit the current Closing callback before issuing the final close.
+        _ = Dispatcher.BeginInvoke(new Action(Close));
     }
 }

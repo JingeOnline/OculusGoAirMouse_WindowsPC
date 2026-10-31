@@ -20,5 +20,6 @@
   "AutoCalibrateOnConnect": false,
   "AutoConnectOnStartup": true,
   "ClickPressLockMilliseconds": 20,
-  "ClickReleaseLockMilliseconds": 10
+  "ClickReleaseLockMilliseconds": 10,
+  "Language": "system"
 }

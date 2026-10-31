@@ -53,6 +53,7 @@ checks += ClickLockChecks.Run();
 checks += await DesktopChecks.RunAsync();
 checks += await PriorityChecks.RunAsync();
 checks += await UserDataChecks.RunAsync();
+checks += await LocalizationChecks.RunAsync();
 checks += await LifecycleChecks.RunAsync();
 Console.WriteLine($"PASS: {checks} migration, input-thread independence, watchdog, calibration, scrolling, button, configuration and native-layout checks.");
 

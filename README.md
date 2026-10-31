@@ -1,6 +1,6 @@
 # Oculus Go Air Mouse
 
-使用 Oculus Go 控制器操作 Windows 鼠标的桌面应用。当前版本 **0.4.4**，基于 **.NET 10、WPF Fluent Theme 和 CommunityToolkit.Mvvm 8.4.2**，采用 MVVM 架构，界面跟随系统明暗主题。
+使用 Oculus Go 控制器操作 Windows 鼠标的桌面应用。当前版本 **0.5.0**，基于 **.NET 10、WPF Fluent Theme 和 CommunityToolkit.Mvvm 8.4.2**，采用 MVVM 架构，界面跟随系统明暗主题。
 
 ![Oculus Go 控制器外观](https://s3files.core77.com/blog/images/922267_90183_87578_86lxkpMhC.jpg)
 
@@ -24,6 +24,12 @@
 5. 默认不自动校准，允许直接使用未校准输入。如有静置漂移，可点击 **重新校准**，或持续按住 **Oculus 1 秒**，随后保持控制器静止。
 
 扫描时按配置中的 `DeviceName` 与广播名称精确匹配，区分大小写，默认 `OMVR-V190`。程序连接扫描得到的蓝牙地址，再检查指定的服务和特征 UUID；不固定绑定某台电脑的地址。附近多个同名控制器可能被选中最先发现的一个。
+
+## 界面语言
+
+顶部 **Language / 语言** 菜单提供 **English**、**中文** 和 **System default / 跟随系统**。默认配置 `"Language": "system"` 按当前 Windows 用户的系统界面语言选择：所有中文区域使用中文，英语使用英语，其他语言无法匹配时使用英语。
+
+手动选择立即刷新按钮、选项卡、使用说明、设置标签、状态及程序生成的连接日志文本，并自动保存到当前用户的 `settings.json`，下次启动沿用。选择“跟随系统”可恢复系统语言模式。切换不会重连、重新校准或应用未保存的设置草稿；也不会改变数值输入的区域格式。Windows/驱动返回的原始错误内容可能保留系统语言，磁盘诊断日志保留原始信息用于排错。
 
 ## 控制方式
 
@@ -86,6 +92,7 @@ UserData/
 
 | 配置项 | 当前默认文件值 | 说明 / 范围 |
 | --- | --- | --- |
+| `Language` | `system` | 界面语言：`system` 跟随系统、`en` 英语、`zh` 中文 |
 | `DeviceName` | `OMVR-V190` | 控制器广播名称，不能为空 |
 | `AutoConnectOnStartup` | `true` | 启动后自动连接，成功后自动开启鼠标 |
 | `AutoReconnect` | `true` | 断线及睡眠唤醒后自动重连 |
@@ -202,7 +209,13 @@ dotnet run --project tests/OculusGoAirMouse.Checks.csproj
 dotnet run --project tests/OverlaySmoke/OverlaySmoke.csproj
 ```
 
-检查覆盖配置校验/保存、未配对停止重试、鼠标输入、点击锁定、校准、滚动、独立输入线程、标题栏兼容、断线与睡眠恢复、桌面不可输入、优先级切换以及资源释放。真实蓝牙兼容性、睡眠唤醒和高负载手感仍需实际硬件测试。
+中英文界面检查使用模拟运行时，不连接控制器，也不写入真实个人配置：
+
+```powershell
+dotnet run --project tests/LanguageSmoke/LanguageSmoke.csproj
+```
+
+检查覆盖系统语言回退、语言切换及偏好保存、配置校验/保存、未配对停止重试、鼠标输入、点击锁定、校准、滚动、独立输入线程、标题栏兼容、断线与睡眠恢复、桌面不可输入、优先级切换以及资源释放。真实蓝牙兼容性、睡眠唤醒和高负载手感仍需实际硬件测试。
 
 ```text
 Models/        参数及范围校验
